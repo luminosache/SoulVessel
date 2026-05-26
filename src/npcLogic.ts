@@ -62,9 +62,26 @@ function sameSet(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((id) => right.includes(id));
 }
 
+function toDecisionKey(selectedIds: string[]): string {
+  return [...selectedIds].sort().join("|");
+}
+
 export function resolveEnding(npc: NpcScript, selectedIds: string[]): NpcEnding | null {
   if (selectedIds.length !== npc.requiredTextSelections + npc.requiredItemSelections) {
     return null;
+  }
+
+  if (npc.decisionMatrix) {
+    const mapping = npc.decisionMatrix[toDecisionKey(selectedIds)];
+    if (mapping) {
+      const mappedEnding = npc.endings.find((ending) => ending.id === mapping.endingId);
+      if (mappedEnding) {
+        return {
+          ...mappedEnding,
+          isTrueEnding: mapping.isTrueEnding,
+        };
+      }
+    }
   }
 
   return npc.endings.find((ending) => sameSet(ending.requiredOptionIds, selectedIds)) ?? null;

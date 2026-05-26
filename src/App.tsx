@@ -17,6 +17,17 @@ import type { FillStage } from "./npcLogic";
 type ActiveTab = string;
 
 const introText = "生人死去，化作幽魂。\n前往泰山府的路上\n能携带的文书\n只有魂瓶上的寥寥数语……";
+const JIN_INTRO_CLASS = "jin-intro-sequence";
+const JIN_TAINTED_KEYWORD = "里通外敌";
+const JIN_COLLAB_OPTION_ID = "jin-collab";
+const JIN_INTRO_DURATION_MS = 7000;
+const KNOWN_THEME_CLASSES = Array.from(
+  new Set(
+    npcScripts
+      .map((npc) => npc.themeClass)
+      .filter((themeClass): themeClass is string => Boolean(themeClass))
+  )
+);
 const completedTypewriterCache = new Set<string>();
 const introInscriptions = [
   {
@@ -208,6 +219,40 @@ interface HangingTagItem {
   pages: TagPageData[];
 }
 
+interface SlowTypeLineProps {
+  text: string;
+  className: string;
+  triggerKey: string;
+}
+
+function SlowTypeLine({ text, className, triggerKey }: SlowTypeLineProps) {
+  const [typedText, setTypedText] = useState("");
+
+  useEffect(() => {
+    let currentIndex = 0;
+    let cancelled = false;
+
+    setTypedText("");
+
+    const tick = () => {
+      if (cancelled) return;
+      currentIndex += 1;
+      setTypedText(text.slice(0, currentIndex));
+      if (currentIndex < text.length) {
+        window.setTimeout(tick, 18);
+      }
+    };
+
+    window.setTimeout(tick, 30);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [text, triggerKey]);
+
+  return <p className={className}>{renderTextWithBold(typedText)}</p>;
+}
+
 const MINI_PARTICLE_SHAPES = [
   "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)", // trapezoid
   "polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)", // irregular pentagon
@@ -383,6 +428,8 @@ export default function App() {
   const [selectedTabs, setSelectedTabs] = useState<ActiveTab[]>([]);
   const [settlementRunId, setSettlementRunId] = useState(0);
   const previousSelectedCountRef = useRef(0);
+  const jinIntroTimerRef = useRef<number | null>(null);
+  const [isJinOptionsVisible, setIsJinOptionsVisible] = useState(true);
 
   // Dissipation states for the slow energy fade-out animation
   const [isDissipating, setIsDissipating] = useState(false);
@@ -401,6 +448,10 @@ export default function App() {
   const optionSlots = currentNpc.options.map((option) => ({ tag: option.id }));
   const isTwoRowOptions = currentNpc.options.length > 4;
   const isChengtaoNpc = currentNpc.id === "npc2-chengtao";
+  const currentThemeClass = currentNpc.themeClass?.trim() ?? "";
+  const currentEntranceHook = currentNpc.entranceHook ?? "none";
+  const isSlowTypeRender = currentNpc.textRenderMode === "slow-type";
+  const hasCinematicEntrance = currentEntranceHook === "jin-cinematic-intro";
   const chengtaoTextOptionIds = isChengtaoNpc
     ? currentNpc.options.filter((option) => option.kind === "text").map((option) => option.id)
     : [];
@@ -429,6 +480,92 @@ export default function App() {
     setArtifactPageIndex(0);
     setActiveDisplayTab(currentNpc.options[0]?.id ?? "");
   }, [currentNpcIndex, currentNpc.options]);
+
+  useEffect(() => {
+    const root = document.getElementById("soul-bottle-root");
+    for (const themeClass of KNOWN_THEME_CLASSES) {
+      document.body.classList.remove(themeClass);
+      root?.classList.remove(themeClass);
+    }
+
+    if (currentThemeClass) {
+      document.body.classList.add(currentThemeClass);
+      root?.classList.add(currentThemeClass);
+    }
+  }, [currentNpc.id, currentThemeClass]);
+
+  useEffect(() => {
+    const titleNode = document.getElementById("cinematic-title");
+    const leftVaseNode = document.getElementById("soul-vase-left");
+    const centerVaseNode = document.getElementById("soul-vase");
+
+    const resetCinematicNodes = () => {
+      if (titleNode) {
+        titleNode.style.animation = "";
+        titleNode.classList.add("hidden");
+      }
+      if (leftVaseNode) {
+        leftVaseNode.style.animation = "";
+        leftVaseNode.classList.add("hidden");
+      }
+      if (centerVaseNode) {
+        centerVaseNode.style.animation = "";
+      }
+    };
+
+    if (jinIntroTimerRef.current !== null) {
+      window.clearTimeout(jinIntroTimerRef.current);
+      jinIntroTimerRef.current = null;
+    }
+    document.body.classList.remove(JIN_INTRO_CLASS);
+    resetCinematicNodes();
+
+    if (!hasCinematicEntrance) {
+      setIsJinOptionsVisible(true);
+      return;
+    }
+
+    setIsJinOptionsVisible(false);
+    document.body.classList.add(JIN_INTRO_CLASS);
+    if (titleNode && centerVaseNode && leftVaseNode) {
+      titleNode.classList.remove("hidden");
+      leftVaseNode.classList.remove("hidden");
+
+      // Ordered sequence: title descent -> center split prep -> left split reveal.
+      titleNode.style.animation = `cinematicTitleSequence ${JIN_INTRO_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1) both`;
+      centerVaseNode.style.animation = `centerVaseIntro ${JIN_INTRO_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1) both`;
+      leftVaseNode.style.animation = `leftVaseSplit ${JIN_INTRO_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1) both`;
+    }
+
+    jinIntroTimerRef.current = window.setTimeout(() => {
+      setIsJinOptionsVisible(true);
+      jinIntroTimerRef.current = null;
+    }, JIN_INTRO_DURATION_MS);
+
+    return () => {
+      if (jinIntroTimerRef.current !== null) {
+        window.clearTimeout(jinIntroTimerRef.current);
+        jinIntroTimerRef.current = null;
+      }
+      document.body.classList.remove(JIN_INTRO_CLASS);
+      resetCinematicNodes();
+    };
+  }, [currentNpc.id, hasCinematicEntrance]);
+
+  useEffect(() => {
+    const leftTextPanel = document.getElementById("left-text-panel");
+    if (!leftTextPanel) return;
+
+    const hasTaintedChoice = selectedTabs.some((selectedId) => {
+      const selectedOption = currentNpc.options.find((option) => option.id === selectedId);
+      return (
+        selectedId === JIN_COLLAB_OPTION_ID ||
+        selectedOption?.label.includes(JIN_TAINTED_KEYWORD) === true
+      );
+    });
+
+    leftTextPanel.classList.toggle("tainted-state", hasTaintedChoice);
+  }, [selectedTabs, currentNpc.options]);
 
   // Toggle selection for bottom options
   const handleTabToggle = (tag: ActiveTab) => {
@@ -514,6 +651,12 @@ export default function App() {
 
   const handleGuideNextNpc = () => {
     if (!canGuideNext) return;
+
+    const root = document.getElementById("soul-bottle-root");
+    for (const themeClass of KNOWN_THEME_CLASSES) {
+      document.body.classList.remove(themeClass);
+      root?.classList.remove(themeClass);
+    }
 
     setShowArtifactOverlay(false);
     setSelectedTabs([]);
@@ -876,7 +1019,9 @@ export default function App() {
 
           {/* Horizontal Left-Aligned Classical Prose Text */}
           <div
-            className={`flex-1 flex flex-col justify-center py-6 space-y-10 animate-fadeIn w-full max-w-[760px] transition-opacity duration-500 ${
+            className={`flex-1 flex flex-col justify-center py-6 space-y-10 w-full max-w-[760px] transition-opacity duration-500 ${
+              isSlowTypeRender ? "" : "animate-fadeIn"
+            } ${
               isLeftTextFading ? "opacity-0" : "opacity-100"
             }`}
             id="left-text-panel"
@@ -891,14 +1036,23 @@ export default function App() {
 
             {/* Dynamic scripture prose block */}
             <div className="space-y-8" id="classical-prose-verses">
-              {leftPanelLines.map((line, idx) => (
-                <p
-                  key={idx}
-                  className="font-serif text-xl tracking-[0.25em] text-[#e2e6e6] leading-relaxed text-left transition-all duration-300 whitespace-pre-line"
-                >
-                  {renderTextWithBold(line)}
-                </p>
-              ))}
+              {leftPanelLines.map((line, idx) =>
+                isSlowTypeRender ? (
+                  <SlowTypeLine
+                    key={`${currentNpc.id}-${idx}`}
+                    triggerKey={`${currentNpc.id}-${idx}-${currentNpcIndex}`}
+                    text={line}
+                    className="font-serif text-xl tracking-[0.25em] text-[#e2e6e6] leading-relaxed text-left transition-all duration-300 whitespace-pre-line"
+                  />
+                ) : (
+                  <p
+                    key={idx}
+                    className="font-serif text-xl tracking-[0.25em] text-[#e2e6e6] leading-relaxed text-left transition-all duration-300 whitespace-pre-line"
+                  >
+                    {renderTextWithBold(line)}
+                  </p>
+                )
+              )}
             </div>
 
 
@@ -1360,7 +1514,7 @@ export default function App() {
           <div className="w-full max-w-6xl flex flex-col items-center justify-center space-y-4">
             
             <div
-              className={`${isTwoRowOptions ? "two-row-options" : "grid grid-cols-4 gap-12"} w-full max-w-4xl text-center`}
+              className={`${isTwoRowOptions ? "two-row-options" : "grid grid-cols-4 gap-12"} w-full max-w-4xl text-center transition-opacity duration-500 ${hasCinematicEntrance && !isJinOptionsVisible ? "opacity-0 pointer-events-none select-none" : "opacity-100"}`}
             >
               {isChengtaoNpc ? (
                 <>

@@ -186,3 +186,37 @@ html, body, #root {
 #right-content-panel.tainted-state [class*="border-"] {
   border-color: #7a1f1f !important;
 }
+
+/* Cinematic intro anchor styles for Jin sequence nodes */
+#cinematic-title {
+  position: absolute;
+  top: 8vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 48;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  color: #dfcdad;
+  letter-spacing: 0.6em;
+  font-weight: 600;
+  font-size: clamp(26px, 3.2vw, 46px);
+  text-shadow: 0 0 14px rgba(253, 224, 71, 0.35), 0 0 28px rgba(250, 62, 62, 0.2);
+}
+
+.jin-effect-node {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: min(320px, 42vw);
+  height: auto;
+  transform: translate(-50%, -50%) scale(1.1);
+  z-index: 26;
+  pointer-events: none;
+  opacity: 1;
+  filter: drop-shadow(0 0 26px rgba(253, 224, 71, 0.45));
+}
+
+#soul-vase-left {
+  max-width: 360px;
+}

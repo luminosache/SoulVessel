@@ -33,6 +33,15 @@ export interface NpcEnding {
   artifacts?: NpcArtifact[];
 }
 
+export type TextRenderMode = "default" | "slow-type";
+export type EntranceHook = "none" | "jin-cinematic-intro";
+
+export interface NpcDecisionMapping {
+  pathId: number;
+  endingId: string;
+  isTrueEnding: boolean;
+}
+
 export interface NpcScript {
   id: string;
   name: string;
@@ -44,6 +53,10 @@ export interface NpcScript {
   requiredTextSelections: number;
   requiredItemSelections: number;
   endings: NpcEnding[];
+  themeClass?: string;
+  textRenderMode?: TextRenderMode;
+  entranceHook?: EntranceHook;
+  decisionMatrix?: Record<string, NpcDecisionMapping>;
 }
 
 const reunionText = `带着家乡的土，能够找到来自家乡的人。惊和不久也同来泰山府的黑夫相聚，这次两兄弟脚上都有完整的鞋子，只是母亲还没来，脚跟总是磨破。黑夫总是说：磨破也好，母亲晚点来，这样嫂子和妹妹起码有饭吃。但惊还是能看到，黑夫偶尔在望乡台拿着那捧土，远远望着新来的魂。`;
@@ -302,4 +315,143 @@ export const npc2: NpcScript = {
   ],
 };
 
-export const npcScripts: NpcScript[] = [npc1, npc2];
+export const npc3: NpcScript = {
+  id: "npc3-jinchengze",
+  themeClass: "jin-warning-mode",
+  textRenderMode: "slow-type",
+  entranceHook: "jin-cinematic-intro",
+  name: "金诚泽",
+  chapter: "npc3 金诚泽",
+  subtitle: "自述·金诚泽",
+  biography:
+    "府君在上，罪人金诚泽，本是长春宫前方丈。伪满时期为求道观与道人存续，我在顺从与抗争之间做了许多错误选择。今日只求一判，愿担其责。",
+  carryItems: [
+    {
+      name: "戒子陈情书",
+      content:
+        "王理仙等戒子称：金真人在传戒中虽受时局裹挟，仍尽力照拂戒子，留存传统戒牒，曾在乱局中护住不少人命。",
+      translation:
+        "这是一份为金诚泽求情的证言，强调其复杂处境下的两难与局部保护行为。",
+    },
+    {
+      name: "双城无量观癸未坛戒牒",
+      content:
+        "康德十年（1943）全真道传戒相关文书。文物显示：在高压政治环境中，仍可见传统戒牒格式的延续。",
+      translation:
+        "它既是时代挤压下的妥协痕迹，也是道统延续的线索。",
+    },
+  ],
+  options: [
+    { id: "jin-collab", label: "里通外敌", kind: "text", selectionGroup: "stance" },
+    { id: "jin-disguise", label: "潜伏伪装", kind: "text", selectionGroup: "stance" },
+    { id: "jin-war", label: "为了圣战", kind: "text", selectionGroup: "motive" },
+    { id: "jin-wealth", label: "政治财富", kind: "text", selectionGroup: "motive" },
+    { id: "jin-credentials", label: "发出戒牒", kind: "text", selectionGroup: "motive" },
+    { id: "jin-submit", label: "宗教臣服", kind: "text", selectionGroup: "orthodoxy" },
+    { id: "jin-preserve", label: "保存火种", kind: "text", selectionGroup: "orthodoxy" },
+  ],
+  requiredTextSelections: 3,
+  requiredItemSelections: 0,
+  decisionMatrix: {
+    "jin-collab|jin-credentials|jin-preserve": { pathId: 7, endingId: "jin-path-7", isTrueEnding: false },
+    "jin-collab|jin-credentials|jin-submit": { pathId: 8, endingId: "jin-path-8", isTrueEnding: false },
+    "jin-collab|jin-preserve|jin-war": { pathId: 11, endingId: "jin-path-11", isTrueEnding: false },
+    "jin-collab|jin-preserve|jin-wealth": { pathId: 9, endingId: "jin-path-9", isTrueEnding: false },
+    "jin-collab|jin-submit|jin-war": { pathId: 12, endingId: "jin-path-12", isTrueEnding: false },
+    "jin-collab|jin-submit|jin-wealth": { pathId: 10, endingId: "jin-path-10", isTrueEnding: false },
+    "jin-credentials|jin-disguise|jin-preserve": { pathId: 1, endingId: "jin-path-1", isTrueEnding: true },
+    "jin-credentials|jin-disguise|jin-submit": { pathId: 2, endingId: "jin-path-2", isTrueEnding: false },
+    "jin-disguise|jin-preserve|jin-war": { pathId: 5, endingId: "jin-path-5", isTrueEnding: true },
+    "jin-disguise|jin-preserve|jin-wealth": { pathId: 3, endingId: "jin-path-3", isTrueEnding: true },
+    "jin-disguise|jin-submit|jin-war": { pathId: 6, endingId: "jin-path-6", isTrueEnding: false },
+    "jin-disguise|jin-submit|jin-wealth": { pathId: 4, endingId: "jin-path-4", isTrueEnding: false },
+  },
+  endings: [
+    {
+      id: "jin-path-1",
+      title: "位列仙班",
+      requiredOptionIds: ["jin-disguise", "jin-credentials", "jin-preserve"],
+      text: "功过相抵后仍有护持之功，可入仙籍。",
+      isTrueEnding: true,
+    },
+    {
+      id: "jin-path-2",
+      title: "魂留泰山府",
+      requiredOptionIds: ["jin-disguise", "jin-credentials", "jin-submit"],
+      text: "有功亦有深重执念，暂留泰山府自证。",
+      isTrueEnding: false,
+    },
+    {
+      id: "jin-path-3",
+      title: "仙籍有名",
+      requiredOptionIds: ["jin-disguise", "jin-wealth", "jin-preserve"],
+      text: "在乱世中留住道脉与人命，终得其名。",
+      isTrueEnding: true,
+    },
+    {
+      id: "jin-path-4",
+      title: "魂留泰山府",
+      requiredOptionIds: ["jin-disguise", "jin-wealth", "jin-submit"],
+      text: "权势交换带来反噬，难以自赎。",
+      isTrueEnding: false,
+    },
+    {
+      id: "jin-path-5",
+      title: "再修散仙",
+      requiredOptionIds: ["jin-disguise", "jin-war", "jin-preserve"],
+      text: "可得仙缘，但需自解心罚后方能远行。",
+      isTrueEnding: true,
+    },
+    {
+      id: "jin-path-6",
+      title: "魂留泰山府",
+      requiredOptionIds: ["jin-disguise", "jin-war", "jin-submit"],
+      text: "在圣战叙事中求生，终被其异化。",
+      isTrueEnding: false,
+    },
+    {
+      id: "jin-path-7",
+      title: "弯腰的人",
+      requiredOptionIds: ["jin-collab", "jin-credentials", "jin-preserve"],
+      text: "可免部分心罚，却再难挺直旧身。",
+      isTrueEnding: false,
+    },
+    {
+      id: "jin-path-8",
+      title: "或空荡荡",
+      requiredOptionIds: ["jin-collab", "jin-credentials", "jin-submit"],
+      text: "记忆剥落，终至自我空心。",
+      isTrueEnding: false,
+    },
+    {
+      id: "jin-path-9",
+      title: "自我放逐",
+      requiredOptionIds: ["jin-collab", "jin-wealth", "jin-preserve"],
+      text: "被供养而无法自洽，最终离群而去。",
+      isTrueEnding: false,
+    },
+    {
+      id: "jin-path-10",
+      title: "亲善景观",
+      requiredOptionIds: ["jin-collab", "jin-wealth", "jin-submit"],
+      text: "沦为符号化展品，徒留荒诞。",
+      isTrueEnding: false,
+    },
+    {
+      id: "jin-path-11",
+      title: "半步地狱",
+      requiredOptionIds: ["jin-collab", "jin-war", "jin-preserve"],
+      text: "获准离府自择去路，负愧而行。",
+      isTrueEnding: false,
+    },
+    {
+      id: "jin-path-12",
+      title: "修罗",
+      requiredOptionIds: ["jin-collab", "jin-war", "jin-submit"],
+      text: "彻底迷失于异道与执念之间。",
+      isTrueEnding: false,
+    },
+  ],
+};
+
+export const npcScripts: NpcScript[] = [npc1, npc2, npc3];
