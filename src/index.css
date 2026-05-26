@@ -1,0 +1,188 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;300;400;500;600&family=JetBrains+Mono:wght@200;400&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Noto Serif SC", "STSong", "FangSong", "SimSun", ui-serif, serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* Standard HTML structure to prevent any scroll jitter */
+html, body, #root {
+  background-color: #3b4343;
+  color: #e2e6e6;
+  font-family: var(--font-serif);
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Vertical Classical Chinese script writing style */
+.vertical-writing {
+  writing-mode: vertical-rl;
+  text-orient: mixed;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes earthShake {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-1.8px, 1.5px) rotate(-0.3deg); }
+  20% { transform: translate(2.1px, -1.8px) rotate(0.3deg); }
+  30% { transform: translate(-2.4px, -0.6px) rotate(-0.3deg); }
+  40% { transform: translate(1.8px, 2.1px) rotate(0.3deg); }
+  50% { transform: translate(-1.5px, -1.5px) rotate(-0.15deg); }
+  60% { transform: translate(2.1px, 1.2px) rotate(0.15deg); }
+  70% { transform: translate(-1.8px, -2.1px) rotate(-0.3deg); }
+  80% { transform: translate(1.2px, -1.2px) rotate(0.15deg); }
+  90% { transform: translate(-0.9px, 1.5px) rotate(-0.15deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.animate-earth-shake {
+  animation: earthShake 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes tombRumble {
+  0%, 100% { transform: translate(0, 0); }
+  10%, 30%, 50%, 70%, 90% { transform: translate(-0.8px, 0.4px); }
+  20%, 40%, 60%, 80% { transform: translate(0.8px, -0.4px); }
+}
+
+.animate-tomb-rumble {
+  animation: tombRumble 0.12s infinite ease-in-out;
+}
+
+.two-row-options {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.chengtao-top-row,
+.chengtao-bottom-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.chengtao-top-row {
+  gap: 56px;
+}
+
+.chengtao-option-pair {
+  display: flex;
+  gap: 15px;
+}
+
+.chengtao-bottom-row {
+  gap: 48px;
+}
+
+.two-row-options .option-slot {
+  min-width: 180px;
+  max-width: 220px;
+}
+
+/* Cinematic title intro fade and spectral spacing */
+@keyframes cinematicTitleSequence {
+  0% { opacity: 0; letter-spacing: 0.4em; filter: blur(8px); }
+  7% { opacity: 0; filter: blur(8px); }
+  15% { opacity: 1; letter-spacing: 0.8em; filter: blur(0px); }
+  35% { opacity: 1; letter-spacing: 1.0em; filter: blur(0px); }
+  43% { opacity: 0; filter: blur(12px); }
+  100% { opacity: 0; filter: blur(12px); }
+}
+
+/* Symmetric vase split motion for center and left */
+@keyframes centerVaseIntro {
+  0% { left: 50%; transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  7% { left: 50%; transform: translate(-50%, -50%) scale(1.4); opacity: 1; }
+  64% { left: 50%; transform: translate(-50%, -50%) scale(1.4); filter: drop-shadow(0 0 60px rgba(253, 224, 71, 0.95)) drop-shadow(0 0 30px rgb(250, 62, 62)); opacity: 1; }
+  100% { left: 75%; transform: translate(-50%, -50%) scale(1.1); filter: drop-shadow(0 0 30px rgba(253, 224, 71, 0.5)); opacity: 1; }
+}
+
+@keyframes leftVaseSplit {
+  0%, 64% { left: 50%; transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
+  64.1% { left: 50%; transform: translate(-50%, -50%) scale(1.4); opacity: 1; }
+  100% { left: 25%; transform: translate(-50%, -50%) scale(1.1); opacity: 1; filter: drop-shadow(0 0 30px rgba(253, 224, 71, 0.5)); }
+}
+
+/* Psychic glitch shake with blood-red channel shift */
+@keyframes textGlitch {
+  0%, 100% { transform: translate(0, 0); text-shadow: none; }
+  20% { transform: translate(-0.8px, 0.8px); text-shadow: -1px 0 #b32424, 1px 0 #dfcdad; }
+  40% { transform: translate(0.8px, -0.8px); text-shadow: 1px 0 #b32424, -1.5px 0 #281a1a; }
+  60% { transform: translate(-0.4px, -0.4px); }
+  80% { transform: translate(0.4px, 0.4px); }
+}
+
+/* Crimson warning noise on all background cells (Tainted State or Jin Warning mode) */
+.jin-warning-mode #left-content-panel,
+.tainted-state #left-content-panel,
+.tainted-state#left-content-panel,
+#left-content-panel.tainted-state {
+  background-color: #1a0808 !important;
+  transition: background-color 2.5s ease-in-out;
+}
+
+.jin-warning-mode #right-content-panel,
+.tainted-state #right-content-panel,
+.tainted-state#right-content-panel,
+#right-content-panel.tainted-state {
+  background-color: #0d0404 !important;
+  transition: background-color 2.5s ease-in-out;
+}
+
+/* Tainted state typography contamination */
+.tainted-state #left-content-panel h1,
+.tainted-state #left-content-panel h2,
+.tainted-state #left-content-panel h3,
+.tainted-state #left-content-panel h4,
+.tainted-state #left-content-panel p,
+.tainted-state #left-content-panel span,
+.tainted-state #right-content-panel h1,
+.tainted-state #right-content-panel h2,
+.tainted-state #right-content-panel h3,
+.tainted-state #right-content-panel h4,
+.tainted-state #right-content-panel p,
+.tainted-state #right-content-panel span,
+#left-content-panel.tainted-state h1,
+#left-content-panel.tainted-state h2,
+#left-content-panel.tainted-state h3,
+#left-content-panel.tainted-state h4,
+#left-content-panel.tainted-state p,
+#left-content-panel.tainted-state span,
+#right-content-panel.tainted-state h1,
+#right-content-panel.tainted-state h2,
+#right-content-panel.tainted-state h3,
+#right-content-panel.tainted-state h4,
+#right-content-panel.tainted-state p,
+#right-content-panel.tainted-state span {
+  color: #e65252 !important;
+  animation: textGlitch 5s infinite linear;
+}
+
+.tainted-state #left-content-panel hr,
+.tainted-state #left-content-panel [class*="border-"],
+.tainted-state #right-content-panel hr,
+.tainted-state #right-content-panel [class*="border-"],
+#left-content-panel.tainted-state hr,
+#left-content-panel.tainted-state [class*="border-"],
+#right-content-panel.tainted-state hr,
+#right-content-panel.tainted-state [class*="border-"] {
+  border-color: #7a1f1f !important;
+}

@@ -1,0 +1,6 @@
+{
+  "name": "魂瓶",
+  "description": "一部汉代画像砖风格的墨色魂瓶交互Demo，探寻幽魂在生人离去、前往泰山府路上的灵魂自述与幽冥执念。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
