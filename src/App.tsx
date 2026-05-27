@@ -832,9 +832,6 @@ export default function App() {
           transition: introStep === "transitioning" ? "clip-path 5000ms cubic-bezier(0.16, 1, 0.3, 1)" : "none",
         }}
       >
-      {/* Cinematic subtitle descent background layer */}
-      <div id="cinematic-title" className="hidden">泰山府悬案</div>
-
       {/* Subtle paper rubbing noise background layer across the entire screen */}
       <div className="absolute inset-0 opacity-[0.025] pointer-events-none z-0 mix-blend-overlay">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
@@ -866,12 +863,6 @@ export default function App() {
           className="w-1/2 flex flex-col justify-between py-20 pl-16 pr-36 z-10 box-border bg-[#3b4343] relative animate-fadeIn animate-duration-500"
           id="left-content-panel"
         >
-          <img
-            id="soul-vase-left"
-            className="jin-effect-node hidden"
-            src="soul-vase.png"
-            alt="Left Soul Vase"
-          />
           <div className="h-4" />
 
           {/* Horizontal Left-Aligned Classical Prose Text */}
