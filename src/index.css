@@ -97,3 +97,156 @@ html, body, #root {
   max-width: 220px;
 }
 
+
+/* ================= JIN CHENGZE EXCLUSIVE STYLES ================= */
+
+body.jin-active {
+  background-color: #131616;
+  transition: background-color 1.2s ease;
+}
+
+/* 6. Ghostly Rust Red Dark Corners */
+body.jin-active::before {
+  content: "";
+  fixed: inset 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle, transparent 40%, rgba(74, 21, 21, 0.15) 100%);
+  pointer-events: none;
+  z-index: 80;
+  opacity: 0;
+  transition: opacity 2s ease;
+}
+
+body.jin-active.jin-warning-mode::before {
+  opacity: 1;
+}
+
+/* 1. Cinematic Intro */
+@keyframes cinematicIntro {
+  0% { opacity: 0; filter: blur(12px); letter-spacing: 2em; transform: scale(1.1); }
+  30% { opacity: 1; filter: blur(0); letter-spacing: 1.2em; transform: scale(1); }
+  70% { opacity: 1; filter: blur(0); letter-spacing: 1.2em; transform: scale(1); }
+  100% { opacity: 0; filter: blur(8px); letter-spacing: 1.5em; transform: scale(0.95); }
+}
+
+.animate-cinematicIntro {
+  animation: cinematicIntro 7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 2. Right Panel Archive Styles */
+body.jin-active #right-content-panel {
+  padding-left: 1.5rem;
+  border-left: 1px solid rgba(140, 58, 58, 0.15) !important;
+  box-shadow: inset 20px 0 30px -20px rgba(0, 0, 0, 0.5) !important;
+  background-color: #131616 !important;
+}
+
+body.jin-active #right-content-panel h2,
+body.jin-active #right-content-panel .text-3xl,
+body.jin-active #right-content-panel span[class*="text-[250%]"] {
+  color: #dfcdad !important;
+  text-shadow: 0px 2px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+body.jin-active #right-content-panel p {
+  line-height: 2.2 !important;
+  letter-spacing: 0.12em !important;
+  color: rgba(164, 186, 186, 0.9) !important;
+  text-align: justify !important;
+}
+
+/* 3. Bottom Option Buttons */
+body.jin-active #global-tabs-dock button {
+  color: #819a9a !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  position: relative;
+}
+
+body.jin-active #global-tabs-dock button:hover {
+  color: #dfcdad !important;
+  letter-spacing: 0.25em !important;
+  text-shadow: 0 0 8px rgba(223, 205, 173, 0.3);
+}
+
+body.jin-active #global-tabs-dock button::before,
+body.jin-active #global-tabs-dock button::after {
+  content: "";
+  position: absolute;
+  top: 15%;
+  bottom: 15%;
+  width: 1px;
+  background-color: #8c3a3a;
+  opacity: 0;
+  transition: all 0.4s ease;
+}
+
+body.jin-active #global-tabs-dock button::before { left: 0; transform: translateX(10px); }
+body.jin-active #global-tabs-dock button::after { right: 0; transform: translateX(-10px); }
+
+body.jin-active #global-tabs-dock button:hover::before,
+body.jin-active #global-tabs-dock button:hover::after {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* 4. Smooth Text Transition: fade-in-slow */
+@keyframes fadeInSlow {
+  from { opacity: 0; filter: blur(4px); transform: translateY(4px); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+
+.fade-in-slow {
+  animation: fadeInSlow 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* 5. Stagger Up Animation */
+@keyframes jinStaggerUp {
+  from { opacity: 0; transform: translateY(10px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.stagger-up {
+  animation: jinStaggerUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* 7. Subtle Glitch / Breathing for text */
+@keyframes subtleGlitch {
+  0%, 100% { text-shadow: 0.4px 0 0 rgba(140, 58, 58, 0.3), -0.4px 0 0 rgba(129, 154, 154, 0.3); }
+  50% { text-shadow: 0.8px 0 0 rgba(140, 58, 58, 0.5), -0.8px 0 0 rgba(129, 154, 154, 0.5); }
+}
+
+body.jin-active #left-content-panel p,
+body.jin-active #right-content-panel p {
+  animation: subtleGlitch 4s infinite ease-in-out;
+}
+
+/* 8. Tainted State Feedback */
+#left-content-panel.tainted-state {
+  transition: all 0.8s ease;
+}
+
+body.jin-active #left-content-panel.tainted-state p {
+  color: #e6d3d3 !important;
+  text-shadow: 0 0 10px rgba(180, 50, 50, 0.35) !important;
+}
+
+body.jin-active #left-content-panel.tainted-state {
+  background-color: #0b0707 !important;
+  border-right: 1px solid rgba(140, 58, 58, 0.3) !important;
+}
+
+/* 10. Strong / Bold "Vermillion" effect */
+body.jin-active strong,
+body.jin-active b {
+  color: #dfcdad !important;
+  border-bottom: 1px dashed rgba(140, 58, 58, 0.7);
+  background: linear-gradient(to top, rgba(140, 58, 58, 0.1) 0%, transparent 40%);
+  padding: 0 2px;
+  font-weight: 500;
+}

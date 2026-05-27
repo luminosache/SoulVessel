@@ -171,7 +171,7 @@ function TypewriterParagraph({
           {typedTitle}
         </strong>
         {typedTitle && <br />}
-        <span className="whitespace-pre-line text-[#8ba2a2] transition-colors duration-300 leading-relaxed block mt-1">
+        <span className="whitespace-pre-line text-lg font-serif tracking-[0.15em] text-[#8ba2a2] transition-colors duration-300 leading-relaxed block mt-1">
           {typedContent}
         </span>
       </p>
@@ -185,7 +185,7 @@ function TypewriterParagraph({
           {title}
         </strong>
         <br />
-        <span className="whitespace-pre-line text-[#8ba2a2] transition-colors duration-300 leading-relaxed block mt-1">
+        <span className="whitespace-pre-line text-lg font-serif tracking-[0.15em] text-[#8ba2a2] transition-colors duration-300 leading-relaxed block mt-1">
           {content}
         </span>
       </p>
@@ -391,6 +391,8 @@ export default function App() {
   const [jinMatchedPath12, setJinMatchedPath12] = useState<JinPath | null>(null);
   const [jinFinalPath, setJinFinalPath] = useState<JinPath | null>(null);
   const [showJinArtifactOverlay, setShowJinArtifactOverlay] = useState(false);
+  const [isJinIntroPlaying, setIsJinIntroPlaying] = useState(false);
+  const hasPlayedJinIntroRef = useRef(false);
   const skipJinIntroDelayRef = useRef(false);
 
   const jinTaintedChoiceId = jinNpcData.round_1.options[0]?.option_id ?? "";
@@ -501,12 +503,14 @@ export default function App() {
 
     if (isJinNpc) {
       document.body.classList.add("jin-active");
+      document.body.classList.add("jin-warning-mode");
       initializeJinFlow();
       leftPanel?.classList.remove("tainted-state");
       return;
     }
 
     document.body.classList.remove("jin-active");
+    document.body.classList.remove("jin-warning-mode");
     leftPanel?.classList.remove("tainted-state");
   }, [isJinNpc, currentNpcIndex]);
 
@@ -566,6 +570,21 @@ export default function App() {
       leftPanel.classList.remove("tainted-state");
     }
   };
+
+
+  useEffect(() => {
+    if (isJinNpc && jinState === 0 && !hasPlayedJinIntroRef.current && !skipJinIntroDelayRef.current) {
+      setIsJinIntroPlaying(true);
+      hasPlayedJinIntroRef.current = true;
+      setTimeout(() => {
+        setIsJinIntroPlaying(false);
+      }, 7000);
+    }
+    if (!isJinNpc) {
+      hasPlayedJinIntroRef.current = false;
+      setIsJinIntroPlaying(false);
+    }
+  }, [isJinNpc, jinState]);
 
   const initializeJinFlow = (options?: { skipIntroDelay?: boolean }) => {
     skipJinIntroDelayRef.current = options?.skipIntroDelay ?? false;
@@ -1048,6 +1067,16 @@ export default function App() {
           transition: introStep === "transitioning" ? "clip-path 5000ms cubic-bezier(0.16, 1, 0.3, 1)" : "none",
         }}
       >
+
+      {/* Cinematic Intro Overlay for Jin Chengze */}
+      {isJinNpc && isJinIntroPlaying && (
+        <div className="fixed inset-0 z-[100] bg-[#0d0f0f] flex items-center justify-center animate-fadeIn">
+          <div className="cinematic-title font-serif text-[#9bb1b1] text-6xl tracking-[1.2em] opacity-0 animate-cinematicIntro">
+            泰山府悬案
+          </div>
+        </div>
+      )}
+
       {/* Subtle paper rubbing noise background layer across the entire screen */}
       <div className="absolute inset-0 opacity-[0.025] pointer-events-none z-0 mix-blend-overlay">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
@@ -1076,8 +1105,7 @@ export default function App() {
         {/* ================= 1. LEFT COLUMN: CLASSICAL PROSE TEXT (50% WIDTH) ================= */}
         {/* Widen standard right padding to guarantee no textual content is ever blocked by the central scaled bottle */}
         <section
-          className="w-1/2 flex flex-col justify-between py-20 pl-16 pr-36 z-10 box-border bg-[#3b4343] relative animate-fadeIn animate-duration-500"
-          id="left-content-panel"
+          id="left-content-panel" className={`w-1/2 flex flex-col justify-between py-20 pl-16 pr-36 z-10 box-border bg-[#3b4343] relative animate-fadeIn animate-duration-500 ${isJinNpc && isJinIntroPlaying ? "opacity-0" : "opacity-100"}`}
         >
           <div className="h-4" />
 
@@ -1090,7 +1118,7 @@ export default function App() {
           >
             
             <div className="space-y-3">
-              <span className="font-serif tracking-[0.4em] text-[#9bb1b1] block text-[250%] leading-none">
+              <span className="font-serif tracking-[0.4em] text-[#9bb1b1] block text-[300%] leading-none">
                 {isJinNpc ? jinLeftPanelTitle : currentNpc.subtitle}
               </span>
               <div className="h-[1px] w-14 bg-[#8da4a4]/40" />
@@ -1100,8 +1128,8 @@ export default function App() {
             <div className="space-y-8" id="classical-prose-verses">
               {leftPanelLines.map((line, idx) => (
                 <p
-                  key={idx}
-                  className="font-serif text-xl tracking-[0.25em] text-[#e2e6e6] leading-relaxed text-left transition-all duration-300 whitespace-pre-line"
+                  key={isJinNpc ? `jin-left-${jinState}-${idx}` : idx}
+                  className={`font-serif text-xl tracking-[0.25em] text-[#e2e6e6] leading-relaxed text-left transition-all duration-300 whitespace-pre-line ${isJinNpc ? "fade-in-slow" : ""}`}
                 >
                   {renderTextWithBold(line)}
                 </p>
@@ -1181,8 +1209,7 @@ export default function App() {
         {/* ================= 2. RIGHT COLUMN: ARCHAEOLOGICAL REPORT GRID (50% WIDTH) ================= */}
         {/* Widen standard left padding on large screens, preventing central scaled bottle overlapping */}
         <section
-          className="w-1/2 flex flex-col justify-between py-20 pr-16 pl-36 z-10 box-border bg-[#131616] relative border-l border-[#2d3838]/15"
-          id="right-content-panel"
+          id="right-content-panel" className={`w-1/2 flex flex-col justify-between py-20 pr-16 pl-36 z-10 box-border bg-[#131616] relative border-l border-[#2d3838]/15 ${isJinNpc && isJinIntroPlaying ? "opacity-0" : "opacity-100"}`}
         >
           {isJinNpc ? (
             <>
@@ -1200,7 +1227,7 @@ export default function App() {
                     <>
                       {(jinState === 0 || jinState === 1) && (
                         <div className="space-y-3">
-                          <span className="font-serif tracking-[0.4em] text-[#9bb1b1] block text-[250%] leading-none">
+                          <span className="font-serif tracking-[0.4em] text-[#9bb1b1] block text-[300%] leading-none">
                             戒子陈情书
                           </span>
                           <div className="h-[1px] w-14 bg-[#8da4a4]/40" />
@@ -1209,7 +1236,7 @@ export default function App() {
                       {jinRightNarrativeLines.map((line, index) => (
                         <p
                           key={`jin-right-${index}`}
-                          className="font-serif text-sm tracking-[0.15em] text-[#8ba2a2] whitespace-pre-line leading-relaxed"
+                          className={`font-serif text-lg tracking-[0.15em] text-[#8ba2a2] whitespace-pre-line leading-relaxed ${isJinNpc ? "fade-in-slow" : ""}`}
                         >
                           {line}
                         </p>
@@ -1626,19 +1653,18 @@ export default function App() {
       */}
       <div className="w-full min-w-[1440px] border-t border-[#525e5e]/15 bg-gradient-to-r from-[#3b4343]/45 via-[#1f2525]/80 to-[#131616]/95 backdrop-blur-xl">
         <footer 
-          className="w-full py-6 bg-transparent px-6 flex justify-center items-center z-30" 
-          id="global-tabs-dock"
+          id="global-tabs-dock" className={`w-full py-6 bg-transparent px-6 flex justify-center items-center z-30 transition-opacity duration-700 ${isJinNpc && isJinIntroPlaying ? "opacity-0" : "opacity-100"}`}
         >
           <div className="w-full max-w-6xl flex flex-col items-center justify-center space-y-4">
             {isJinNpc ? (
               <div className="w-full max-w-4xl text-center">
                 {jinState === 1 && (
                   <div className="grid grid-cols-2 gap-12">
-                    {jinNpcData.round_1.options.map((option) => (
+                    {jinNpcData.round_1.options.map((option, index) => (
                       <button
-                        key={`jin-r1-${option.option_id}`}
+                        key={`jin-r1-${option.option_id}`} style={{ animationDelay: `${index * 80}ms` }}
                         onClick={() => handleJinRound1Select(option.option_id)}
-                        className="font-serif text-base tracking-[0.25em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer py-3"
+                        className="font-serif text-base tracking-[0.25em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer py-3 stagger-up"
                       >
                         {option.text}
                       </button>
@@ -1647,11 +1673,11 @@ export default function App() {
                 )}
                 {jinState === 3 && (
                   <div className="grid grid-cols-3 gap-10">
-                    {jinNpcData.round_2.options.map((option) => (
+                    {jinNpcData.round_2.options.map((option, index) => (
                       <button
-                        key={`jin-r2-${option.option_id}`}
+                        key={`jin-r2-${option.option_id}`} style={{ animationDelay: `${index * 80}ms` }}
                         onClick={() => handleJinRound2Select(option.option_id)}
-                        className="font-serif text-base tracking-[0.2em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer py-3"
+                        className="font-serif text-base tracking-[0.2em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer py-3 stagger-up"
                       >
                         {option.text}
                       </button>
@@ -1660,11 +1686,11 @@ export default function App() {
                 )}
                 {jinState === 5 && (
                   <div className="grid grid-cols-2 gap-12">
-                    {jinNpcData.round_3.options.map((option) => (
+                    {jinNpcData.round_3.options.map((option, index) => (
                       <button
-                        key={`jin-r3-${option.option_id}`}
+                        key={`jin-r3-${option.option_id}`} style={{ animationDelay: `${index * 80}ms` }}
                         onClick={() => handleJinRound3Select(option.option_id)}
-                        className="font-serif text-base tracking-[0.2em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer py-3"
+                        className="font-serif text-base tracking-[0.2em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer py-3 stagger-up"
                       >
                         {option.text}
                       </button>
