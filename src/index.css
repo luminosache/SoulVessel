@@ -72,6 +72,23 @@ html, body, #root {
   gap: 15px;
 }
 
+.chengtao-main-stage {
+  min-height: calc(100vh - 156px);
+}
+
+.chengtao-tabs-shell {
+  flex: 0 0 156px;
+  min-height: 156px;
+  position: relative;
+  z-index: 5;
+}
+
+.chengtao-tabs-dock {
+  height: 100%;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
 .chengtao-top-row,
 .chengtao-bottom-row {
   display: flex;
@@ -81,6 +98,21 @@ html, body, #root {
 
 .chengtao-top-row {
   gap: 56px;
+  position: relative;
+}
+
+.chengtao-top-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  height: 58px;
+  background-color: #6c7f7f;
+  opacity: 0.55;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .chengtao-option-pair {
@@ -89,7 +121,17 @@ html, body, #root {
 }
 
 .chengtao-bottom-row {
-  gap: 48px;
+  gap: 44px;
+}
+
+.chengtao-ending-panel {
+  justify-content: flex-start;
+}
+
+.chengtao-ending-text-scroll {
+  box-sizing: border-box;
+  max-height: calc(100% - 5.5rem);
+  padding-bottom: 1rem;
 }
 
 .two-row-options .option-slot {
@@ -215,15 +257,38 @@ body.jin-active #global-tabs-dock button:hover::after {
   animation: jinStaggerUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* 7. Subtle Glitch / Breathing for text */
-@keyframes subtleGlitch {
-  0%, 100% { text-shadow: 0.4px 0 0 rgba(140, 58, 58, 0.3), -0.4px 0 0 rgba(129, 154, 154, 0.3); }
-  50% { text-shadow: 0.8px 0 0 rgba(140, 58, 58, 0.5), -0.8px 0 0 rgba(129, 154, 154, 0.5); }
+/* 7. Subtle Glitch / Breathing for text (Bowing Dizziness) */
+@keyframes bowingDizziness {
+  0%, 100% {
+    text-shadow: 0.4px 0 0 rgba(140, 58, 58, 0.2), -0.4px 0 0 rgba(129, 154, 154, 0.2);
+  }
+  25% {
+    text-shadow: 1.2px 0.5px 0 rgba(140, 58, 58, 0.3), -1.2px -0.5px 0 rgba(129, 154, 154, 0.2);
+  }
+  50% {
+    text-shadow: 0.8px 0.8px 1.5px rgba(140, 58, 58, 0.4);
+  }
+  75% {
+    text-shadow: -1px 0.3px 0 rgba(140, 58, 58, 0.3), 1px -0.3px 0 rgba(129, 154, 154, 0.2);
+  }
 }
 
-body.jin-active #left-content-panel p,
-body.jin-active #right-content-panel p {
-  animation: subtleGlitch 4s infinite ease-in-out;
+body.jin-active #left-content-panel p:not(.typewriter-content),
+body.jin-active #right-content-panel p:not(.typewriter-content) {
+  animation: bowingDizziness 6s infinite ease-in-out;
+  will-change: text-shadow;
+}
+
+body.jin-active .typewriter-content {
+  animation: none !important;
+  filter: none;
+  transform: none;
+  will-change: auto;
+}
+
+body.jin-active #left-content-panel.tainted-state p:not(.typewriter-content) {
+  animation-duration: 8s;
+  animation-timing-function: cubic-bezier(0.445, 0.05, 0.55, 0.95);
 }
 
 /* 8. Tainted State Feedback */

@@ -18,11 +18,19 @@ import {
   findFinalPath,
   findPathByChoice1,
   findPathByChoice12,
+  getJinDisguiseFillStage,
   isRenderableText,
   renderLeftPanelFromSlots,
   runJinWhiteboxMatrix,
   validateJinData,
 } from "./jinLogic";
+import {
+  getTypewriterSnapshot,
+  getTypewriterReplayKey,
+  recordTypewriterSnapshot,
+  TYPEWRITER_CONTENT_INTERVAL_MS,
+  TYPEWRITER_TITLE_INTERVAL_MS,
+} from "./typewriterLogic";
 
 type ActiveTab = string;
 type JinState = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
@@ -64,6 +72,7 @@ interface TypewriterParagraphProps {
   delay?: number;
   titleColorClass?: string;
   triggerKey: string;
+  onComplete?: () => void;
 }
 
 function TypewriterParagraph({
@@ -72,12 +81,18 @@ function TypewriterParagraph({
   delay = 0,
   titleColorClass = "text-[#a4baba]",
   triggerKey,
+  onComplete,
 }: TypewriterParagraphProps) {
   const [typedTitle, setTypedTitle] = useState("");
   const [typedContent, setTypedContent] = useState("");
   const [textBoxHeight, setTextBoxHeight] = useState<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const measureRef = useRef<HTMLParagraphElement | null>(null);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -103,20 +118,26 @@ function TypewriterParagraph({
   }, [title, content, titleColorClass]);
 
   useEffect(() => {
-    const cacheKey = `${triggerKey}::${title}::${content}`;
-    if (completedTypewriterCache.has(cacheKey)) {
+    const cacheKey = getTypewriterReplayKey({ title, content, triggerKey });
+    const cachedSnapshot = getTypewriterSnapshot(cacheKey);
+    if (completedTypewriterCache.has(cacheKey) || cachedSnapshot?.completed) {
       setTypedTitle(title);
       setTypedContent(content);
+      window.setTimeout(() => onCompleteRef.current?.(), 0);
       return;
     }
 
-    setTypedTitle("");
-    setTypedContent("");
+    const initialTitle = cachedSnapshot?.typedTitle ?? "";
+    const initialContent = cachedSnapshot?.typedContent ?? "";
+
+    setTypedTitle(initialTitle);
+    setTypedContent(initialContent);
 
     let cancelled = false;
     const titleLength = title.length;
     const contentLength = content.length;
     const contentStep = Math.max(1, Math.ceil(contentLength / 420));
+    const hasCachedProgress = initialTitle.length > 0 || initialContent.length > 0;
 
     const clearPending = () => {
       if (timeoutRef.current !== null) {
@@ -128,32 +149,66 @@ function TypewriterParagraph({
     const typeContent = (contentIdx: number) => {
       if (cancelled) return;
       const nextContentIdx = Math.min(contentLength, contentIdx + contentStep);
-      setTypedContent(content.slice(0, nextContentIdx));
+      const nextContent = content.slice(0, nextContentIdx);
+      setTypedTitle(title);
+      setTypedContent(nextContent);
       if (nextContentIdx >= contentLength) {
+        recordTypewriterSnapshot(cacheKey, {
+          typedTitle: title,
+          typedContent: content,
+          completed: true,
+        });
         completedTypewriterCache.add(cacheKey);
+        onCompleteRef.current?.();
         return;
       }
-      timeoutRef.current = window.setTimeout(() => typeContent(nextContentIdx), 8);
+      recordTypewriterSnapshot(cacheKey, {
+        typedTitle: title,
+        typedContent: nextContent,
+        completed: false,
+      });
+      timeoutRef.current = window.setTimeout(
+        () => typeContent(nextContentIdx),
+        TYPEWRITER_CONTENT_INTERVAL_MS,
+      );
     };
 
     const typeTitle = (titleIdx: number) => {
       if (cancelled) return;
       const nextTitleIdx = titleIdx + 1;
-      setTypedTitle(title.slice(0, nextTitleIdx));
+      const nextTitle = title.slice(0, nextTitleIdx);
+      setTypedTitle(nextTitle);
       if (nextTitleIdx >= titleLength) {
-        typeContent(0);
+        recordTypewriterSnapshot(cacheKey, {
+          typedTitle: title,
+          typedContent: initialContent,
+          completed: false,
+        });
+        typeContent(initialContent.length);
         return;
       }
-      timeoutRef.current = window.setTimeout(() => typeTitle(nextTitleIdx), 15);
+      recordTypewriterSnapshot(cacheKey, {
+        typedTitle: nextTitle,
+        typedContent: initialContent,
+        completed: false,
+      });
+      timeoutRef.current = window.setTimeout(
+        () => typeTitle(nextTitleIdx),
+        TYPEWRITER_TITLE_INTERVAL_MS,
+      );
     };
 
     timeoutRef.current = window.setTimeout(() => {
-      if (titleLength === 0) {
-        typeContent(0);
+      if (initialTitle.length >= titleLength) {
+        typeContent(initialContent.length);
         return;
       }
-      typeTitle(0);
-    }, delay);
+      if (titleLength === 0) {
+        typeContent(initialContent.length);
+        return;
+      }
+      typeTitle(initialTitle.length);
+    }, hasCachedProgress ? 0 : delay);
 
     return () => {
       cancelled = true;
@@ -392,10 +447,16 @@ export default function App() {
   const [jinFinalPath, setJinFinalPath] = useState<JinPath | null>(null);
   const [showJinArtifactOverlay, setShowJinArtifactOverlay] = useState(false);
   const [isJinIntroPlaying, setIsJinIntroPlaying] = useState(false);
+  const [jinVesselFillStage, setJinVesselFillStage] = useState<FillStage>(0);
+  const [isJinVesselDissipating, setIsJinVesselDissipating] = useState(false);
   const hasPlayedJinIntroRef = useRef(false);
   const skipJinIntroDelayRef = useRef(false);
 
   const jinTaintedChoiceId = jinNpcData.round_1.options[0]?.option_id ?? "";
+  const jinDisguiseChoiceId =
+    jinNpcData.round_1.options.find((option) => option.text === "潜伏伪装")?.option_id ??
+    jinNpcData.round_1.options[1]?.option_id ??
+    "";
   const jinLeftRenderedLines = renderLeftPanelFromSlots(jinLeftSlots);
   const jinRightNarrativeLines = [jinRightText1, jinRightText2, jinRightText3].filter(
     isRenderableText,
@@ -427,6 +488,7 @@ export default function App() {
   // Multi-selectable toggle buttons for the bottom options
   const [selectedTabs, setSelectedTabs] = useState<ActiveTab[]>([]);
   const [settlementRunId, setSettlementRunId] = useState(0);
+  const [endingActionsVisible, setEndingActionsVisible] = useState(false);
   const previousSelectedCountRef = useRef(0);
 
   // Dissipation states for the slow energy fade-out animation
@@ -602,6 +664,8 @@ export default function App() {
     setJinMatchedPath1(null);
     setJinMatchedPath12(null);
     setJinFinalPath(null);
+    setJinVesselFillStage(0);
+    setIsJinVesselDissipating(false);
     setJinTaintedState(false);
   };
 
@@ -621,6 +685,8 @@ export default function App() {
     setJinRightText3("");
     setJinShowingEnding(false);
     setJinState(3);
+    setJinVesselFillStage(getJinDisguiseFillStage(optionId, "", "", jinDisguiseChoiceId));
+    setIsJinVesselDissipating(false);
 
     const isTainted = optionId === jinTaintedChoiceId;
     setJinTaintedState(isTainted);
@@ -639,6 +705,7 @@ export default function App() {
       text2: matched.text_2_left_neutral,
     }));
     setJinState(5);
+    setJinVesselFillStage(getJinDisguiseFillStage(jinChoice1, optionId, "", jinDisguiseChoiceId));
   };
 
   const handleJinRound3Select = (optionId: string) => {
@@ -663,6 +730,9 @@ export default function App() {
     }));
     setJinShowingEnding(false);
     setJinState(6);
+    setJinVesselFillStage(
+      getJinDisguiseFillStage(jinChoice1, jinChoice2, optionId, jinDisguiseChoiceId),
+    );
   };
 
   const handleJinViewEnding = () => {
@@ -673,6 +743,13 @@ export default function App() {
 
   const handleJinBackToNarrative = () => {
     if (jinState !== 7) return;
+    if (jinVesselFillStage > 0) {
+      setIsJinVesselDissipating(true);
+      window.setTimeout(() => {
+        initializeJinFlow({ skipIntroDelay: true });
+      }, 650);
+      return;
+    }
     initializeJinFlow({ skipIntroDelay: true });
   };
 
@@ -710,9 +787,16 @@ export default function App() {
     }
   };
 
-  const { y: yPosition, height: heightValue, particleOpacity, percentLabel } = getFillMetrics(visualFillStage);
-
   const selectedCount = selectedTabs.length;
+  const isJinDisguiseVesselActive =
+    isJinNpc && (jinVesselFillStage > 0 || isJinVesselDissipating);
+  const vesselFillStage = isJinDisguiseVesselActive ? jinVesselFillStage : visualFillStage;
+  const vesselFillCount = vesselFillStage;
+  const isVesselDissipating = isJinDisguiseVesselActive
+    ? isJinVesselDissipating
+    : isDissipating;
+  const vesselRequiredSelectionCount = isJinDisguiseVesselActive ? 3 : requiredSelectionCount;
+  const { y: yPosition, height: heightValue, particleOpacity, percentLabel } = getFillMetrics(vesselFillStage);
 
   useEffect(() => {
     if (
@@ -724,13 +808,13 @@ export default function App() {
     previousSelectedCountRef.current = selectedCount;
   }, [selectedCount, requiredSelectionCount]);
 
-  const soulVaseOpacity = selectedCount === 0 ? 0.35 
-                        : selectedCount === 1 ? 0.60 
-                        : selectedCount === 2 ? 0.85 
+  const soulVaseOpacity = vesselFillCount === 0 ? 0.35
+                        : vesselFillCount === 1 ? 0.60
+                        : vesselFillCount === 2 ? 0.85
                         : 1.0;
 
-  const soulVaseFilter = selectedCount >= requiredSelectionCount 
-    ? "drop-shadow(0 0 40px rgba(180, 190, 200, 0.4))" 
+  const soulVaseFilter = vesselFillCount >= vesselRequiredSelectionCount
+    ? "drop-shadow(0 0 40px rgba(180, 190, 200, 0.4))"
     : "drop-shadow(0 0 20px rgba(180, 190, 200, 0.15))";
 
   const triggerKey = `${activeDisplayTab}-${selectedCount}-${settlementRunId}`;
@@ -742,10 +826,16 @@ export default function App() {
   const hasNextNpc = currentNpcIndex < npcScripts.length - 1;
   const canGuideNext = isTrueEnding && hasNextNpc;
   const showExplanationHeading = currentNpc.id !== "npc2-chengtao";
+  const canShowStandardEndingActions =
+    Boolean(currentEnding) && endingActionsVisible && !isDissipating;
 
   useEffect(() => {
     setArtifactPageIndex(0);
   }, [currentEnding?.id]);
+
+  useEffect(() => {
+    setEndingActionsVisible(false);
+  }, [currentEnding?.id, triggerKey]);
 
   const handleGuideNextNpc = () => {
     if (!canGuideNext) return;
@@ -1089,7 +1179,7 @@ export default function App() {
       </div>
 
       {/* ================= DUAL-COLUMN VIEWPORT LAYOUT with FLOATING CENTERPIECE ================= */}
-      <div className="flex-1 w-full min-w-[1440px] flex flex-row relative z-10 min-h-[calc(100vh-100px)]">
+      <div className={`flex-1 w-full min-w-[1440px] flex flex-row relative z-10 min-h-[calc(100vh-100px)] ${isChengtaoNpc ? "chengtao-main-stage" : ""}`}>
         
         {/* ================= EXTRA: SHADOW DIVISION INTERSECT BETWEEN COLUMNS ================= */}
         {/* Adds back the gorgeous vertical ambient dark shadow fading to both sides */}
@@ -1303,12 +1393,12 @@ export default function App() {
                       transition: { duration: isDissipating ? 1.5 : 0.8 } 
                     }}
                     exit={{ opacity: 0, x: -20, transition: { duration: 0.5 } }}
-                    className="absolute inset-0 bg-[#131616] py-20 pr-16 pl-36 flex flex-col items-start justify-center z-10"
+                    className={`absolute inset-0 bg-[#131616] py-20 pr-16 pl-36 flex flex-col items-start justify-center z-10 ${isChengtaoNpc ? "chengtao-ending-panel" : ""}`}
                     style={{
                       transition: "opacity 1500ms ease-in-out"
                     }}
                   >
-                    <div className="max-h-full overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-[#2d3838] scrollbar-track-transparent w-full max-w-[760px]">
+                    <div className={`max-h-full overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-[#2d3838] scrollbar-track-transparent w-full max-w-[760px] ${isChengtaoNpc ? "chengtao-ending-text-scroll" : ""}`}>
                       {currentEnding && (
                         <TypewriterParagraph
                           title={currentEnding.title}
@@ -1316,6 +1406,7 @@ export default function App() {
                           delay={0}
                           titleColorClass={isTrueEnding ? "text-[#dfcdad]" : "text-[#a4baba]"}
                           triggerKey={`${triggerKey}-${currentEnding.id}`}
+                          onComplete={() => setEndingActionsVisible(true)}
                         />
                       )}
                     </div>
@@ -1325,37 +1416,42 @@ export default function App() {
 
               {/* Action Button Area aligned with the left-edge of the right column text */}
               <div className="absolute bottom-10 left-36 z-30 flex items-center space-x-6">
-                <button
-                  onClick={() => {
-                    if (isDissipating) return;
-                    // Trigger tactile feedback vibration of the vessel ONLY (NO water ripples on reset as requested)
-                    setVibrateTrigger(false);
-                    setRippleTrigger(false);
-                    setIsDissipating(true);
-                    setTimeout(() => {
-                      setVibrateTrigger(true);
-                    }, 12);
-                    // Gradually reset visual state after fading out completely first
-                    setTimeout(() => {
-                      setSelectedTabs([]);
-                      setActiveDisplayTab(currentNpc.options[0]?.id ?? "");
-                      setIsDissipating(false);
-                      previousSelectedCountRef.current = 0;
-                    }, 1500);
-                  }}
-                  className="font-serif text-sm tracking-[0.4em] text-[#819595]/50 hover:text-[#dfcdad] transition-all duration-300 py-1.5 bg-transparent border-none rounded-none cursor-pointer relative z-40"
-                  title="重设所有选项"
-                >
-                  重选
-                </button>
+                {canShowStandardEndingActions && (
+                  <>
+                    <button
+                      onClick={() => {
+                        if (isDissipating) return;
+                        setEndingActionsVisible(false);
+                        // Trigger tactile feedback vibration of the vessel ONLY (NO water ripples on reset as requested)
+                        setVibrateTrigger(false);
+                        setRippleTrigger(false);
+                        setIsDissipating(true);
+                        setTimeout(() => {
+                          setVibrateTrigger(true);
+                        }, 12);
+                        // Gradually reset visual state after fading out completely first
+                        setTimeout(() => {
+                          setSelectedTabs([]);
+                          setActiveDisplayTab(currentNpc.options[0]?.id ?? "");
+                          setIsDissipating(false);
+                          previousSelectedCountRef.current = 0;
+                        }, 1500);
+                      }}
+                      className="font-serif text-sm tracking-[0.4em] text-[#819595]/50 hover:text-[#dfcdad] transition-all duration-300 py-1.5 bg-transparent border-none rounded-none cursor-pointer relative z-40 animate-fadeIn"
+                      title="重设所有选项"
+                    >
+                      重选
+                    </button>
 
-                {currentArtifacts.length > 0 && (
-                  <TypewriterArtifactButton
-                    onClick={() => {
-                      setArtifactPageIndex(0);
-                      setShowArtifactOverlay(true);
-                    }}
-                  />
+                    {currentArtifacts.length > 0 && (
+                      <TypewriterArtifactButton
+                        onClick={() => {
+                          setArtifactPageIndex(0);
+                          setShowArtifactOverlay(true);
+                        }}
+                      />
+                    )}
+                  </>
                 )}
               </div>
             </>
@@ -1600,8 +1696,8 @@ export default function App() {
                   fill={`url(#grad-${goldEdition})`}
                   filter={`url(#gold-glow-${goldEdition})`}
                   style={{
-                    opacity: isDissipating ? 0 : (selectedCount === 0 ? 0 : goldDensity),
-                    transition: selectedCount === 0 ? "none" : "opacity 1500ms cubic-bezier(0.16, 1, 0.3, 1), y 1000ms ease-in-out, height 1000ms ease-in-out"
+                    opacity: isVesselDissipating ? 0 : (vesselFillCount === 0 ? 0 : goldDensity),
+                    transition: vesselFillCount === 0 && !isVesselDissipating ? "none" : "opacity 1500ms cubic-bezier(0.16, 1, 0.3, 1), y 1000ms ease-in-out, height 1000ms ease-in-out"
                   }}
                 />
 
@@ -1613,8 +1709,8 @@ export default function App() {
                   fill={`url(#grad-${goldEdition})`}
                   filter={`url(#gold-glow-${goldEdition})`}
                   style={{
-                    opacity: isDissipating ? 0 : (selectedCount === 0 ? 0 : (goldDensity * 0.75)),
-                    transition: selectedCount === 0 ? "none" : "opacity 1500ms cubic-bezier(0.16, 1, 0.3, 1), cy 1000ms ease-in-out"
+                    opacity: isVesselDissipating ? 0 : (vesselFillCount === 0 ? 0 : (goldDensity * 0.75)),
+                    transition: vesselFillCount === 0 && !isVesselDissipating ? "none" : "opacity 1500ms cubic-bezier(0.16, 1, 0.3, 1), cy 1000ms ease-in-out"
                   }}
                   className="swirling-spirit"
                 />
@@ -1622,8 +1718,8 @@ export default function App() {
                 {/* Rising spiritual embers/sparkles when filled */}
                 <g 
                   style={{
-                    opacity: isDissipating ? 0 : (selectedCount === 0 ? 0 : particleOpacity),
-                    transition: selectedCount === 0 ? "none" : "opacity 1500ms ease-out"
+                    opacity: isVesselDissipating ? 0 : (vesselFillCount === 0 ? 0 : particleOpacity),
+                    transition: vesselFillCount === 0 && !isVesselDissipating ? "none" : "opacity 1500ms ease-out"
                   }}
                 >
                   <circle cx="115" cy="350" r="1.5" fill="#ffd179" className="animate-pulse" style={{ animationDuration: '3.5s' }} />
@@ -1651,9 +1747,13 @@ export default function App() {
           * Hover state: Brighter slate-grey text with a grey/slate underline.
           * Pressed/Selected state: Elegant cream-gold text with a gold/amber glowing underline.
       */}
-      <div className="w-full min-w-[1440px] border-t border-[#525e5e]/15 bg-gradient-to-r from-[#3b4343]/45 via-[#1f2525]/80 to-[#131616]/95 backdrop-blur-xl">
+      <div
+        className={`w-full min-w-[1440px] border-t border-[#525e5e]/15 bg-gradient-to-r from-[#3b4343]/45 via-[#1f2525]/80 to-[#131616]/95 backdrop-blur-xl ${
+          isChengtaoNpc ? "chengtao-tabs-shell" : ""
+        }`}
+      >
         <footer 
-          id="global-tabs-dock" className={`w-full py-6 bg-transparent px-6 flex justify-center items-center z-30 transition-opacity duration-700 ${isJinNpc && isJinIntroPlaying ? "opacity-0" : "opacity-100"}`}
+          id="global-tabs-dock" className={`w-full py-6 bg-transparent px-6 flex justify-center items-center z-30 transition-opacity duration-700 ${isJinNpc && isJinIntroPlaying ? "opacity-0" : "opacity-100"} ${isChengtaoNpc ? "chengtao-tabs-dock" : ""}`}
         >
           <div className="w-full max-w-6xl flex flex-col items-center justify-center space-y-4">
             {isJinNpc ? (

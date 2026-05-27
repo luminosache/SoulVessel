@@ -1,5 +1,7 @@
 ﻿import type { JinNpc3Data, JinPath } from "./jinData";
 
+import type { FillStage } from "./npcLogic";
+
 export interface LeftSlots {
   text1: string;
   text2: string;
@@ -47,6 +49,18 @@ export function findFinalPath(data: JinNpc3Data, choice1: string, choice2: strin
         path.choices[2] === choice3,
     ) ?? null
   );
+}
+
+export function getJinDisguiseFillStage(
+  choice1: string,
+  choice2: string,
+  choice3: string,
+  disguiseChoiceId: string,
+): FillStage {
+  if (!disguiseChoiceId || choice1 !== disguiseChoiceId) return 0;
+  if (choice3) return 3;
+  if (choice2) return 2;
+  return 1;
 }
 
 export function validateJinData(data: JinNpc3Data): JinValidationResult {
