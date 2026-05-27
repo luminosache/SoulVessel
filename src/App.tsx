@@ -209,6 +209,23 @@ function TypewriterArtifactButton({ onClick }: TypewriterArtifactButtonProps) {
   );
 }
 
+function JinMinimalVase({ className }: { className: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 300 450"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="魂瓶"
+    >
+      <path
+        d="M 150 110 C 165 110, 178 112, 182 116 C 184 122, 172 135, 168 142 C 165 147, 180 160, 205 178 C 220 188, 222 210, 222 235 C 222 285, 210 370, 185 410 C 183 413, 180 415, 178 415 L 150 415 L 122 415 C 120 415, 117 413, 115 410 C 90 370, 78 285, 78 235 C 78 210, 80 188, 95 178 C 120 160, 135 147, 132 142 C 128 135, 116 122, 118 116 C 122 112, 135 110, 150 110 Z"
+        fill="#000000"
+      />
+    </svg>
+  );
+}
+
 interface TagPageData {
   content: string;
   interpretation: string;
@@ -391,9 +408,13 @@ export default function App() {
   const [jinMatchedPath12, setJinMatchedPath12] = useState<JinPath | null>(null);
   const [jinFinalPath, setJinFinalPath] = useState<JinPath | null>(null);
   const [showJinArtifactOverlay, setShowJinArtifactOverlay] = useState(false);
+  const [isJinIntroPlaying, setIsJinIntroPlaying] = useState(false);
+  const [isJinTainted, setIsJinTainted] = useState(false);
   const skipJinIntroDelayRef = useRef(false);
 
   const jinTaintedChoiceId = jinNpcData.round_1.options[0]?.option_id ?? "";
+  const jinSacredWarChoiceId =
+    jinNpcData.round_2.options.find((option) => option.option_id === "为了圣战")?.option_id ?? "";
   const jinLeftRenderedLines = renderLeftPanelFromSlots(jinLeftSlots);
   const jinRightNarrativeLines = [jinRightText1, jinRightText2, jinRightText3].filter(
     isRenderableText,
@@ -503,12 +524,37 @@ export default function App() {
       document.body.classList.add("jin-active");
       initializeJinFlow();
       leftPanel?.classList.remove("tainted-state");
+      setJinTaintedState(false);
       return;
     }
 
     document.body.classList.remove("jin-active");
     leftPanel?.classList.remove("tainted-state");
+    setJinTaintedState(false);
   }, [isJinNpc, currentNpcIndex]);
+
+  useEffect(() => {
+    if (!isJinNpc) {
+      setIsJinIntroPlaying(false);
+      return;
+    }
+
+    setIsJinIntroPlaying(true);
+    const timer = window.setTimeout(() => {
+      setIsJinIntroPlaying(false);
+    }, 7000);
+
+    return () => window.clearTimeout(timer);
+  }, [isJinNpc, currentNpcIndex]);
+
+  useEffect(() => {
+    const enabled = isJinNpc && !isJinIntroPlaying;
+    document.body.classList.toggle("jin-warning-mode", enabled);
+
+    return () => {
+      document.body.classList.remove("jin-warning-mode");
+    };
+  }, [isJinNpc, isJinIntroPlaying]);
 
   useEffect(() => {
     if (!isJinNpc) return;
@@ -558,13 +604,7 @@ export default function App() {
   };
 
   const setJinTaintedState = (enabled: boolean) => {
-    const leftPanel = document.getElementById("left-content-panel");
-    if (!leftPanel) return;
-    if (enabled) {
-      leftPanel.classList.add("tainted-state");
-    } else {
-      leftPanel.classList.remove("tainted-state");
-    }
+    setIsJinTainted(enabled);
   };
 
   const initializeJinFlow = (options?: { skipIntroDelay?: boolean }) => {
@@ -620,6 +660,7 @@ export default function App() {
       text2: matched.text_2_left_neutral,
     }));
     setJinState(5);
+    setJinTaintedState(jinChoice1 === jinTaintedChoiceId || optionId === jinSacredWarChoiceId);
   };
 
   const handleJinRound3Select = (optionId: string) => {
@@ -723,6 +764,28 @@ export default function App() {
   const hasNextNpc = currentNpcIndex < npcScripts.length - 1;
   const canGuideNext = isTrueEnding && hasNextNpc;
   const showExplanationHeading = currentNpc.id !== "npc2-chengtao";
+  const showJinCinematicIntro = isJinNpc && isJinIntroPlaying;
+  const showJinWarningMode = isJinNpc && !isJinIntroPlaying;
+
+  useEffect(() => {
+    if (!showJinWarningMode) return;
+
+    const root = document.getElementById("soul-bottle-root");
+    if (!root) return;
+
+    const syncJinScrollOffset = () => {
+      root.style.setProperty("--jin-root-scroll-top", `${root.scrollTop}px`);
+    };
+
+    root.scrollTo({ top: 0, left: 0 });
+    syncJinScrollOffset();
+    root.addEventListener("scroll", syncJinScrollOffset, { passive: true });
+
+    return () => {
+      root.removeEventListener("scroll", syncJinScrollOffset);
+      root.style.removeProperty("--jin-root-scroll-top");
+    };
+  }, [showJinWarningMode]);
 
   useEffect(() => {
     setArtifactPageIndex(0);
@@ -1038,6 +1101,8 @@ export default function App() {
       <div
         className={`w-full min-w-[1440px] min-h-screen bg-[#3b4343] flex flex-col relative overflow-hidden text-[#e2e6e6] select-none ${
           introStep === "done" ? "animate-fadeIn" : ""
+        } ${showJinCinematicIntro ? "jin-intro-playing" : ""} ${
+          showJinWarningMode ? "jin-warning-mode" : ""
         }`}
         id="soul-bottle-root"
         style={{
@@ -1048,6 +1113,17 @@ export default function App() {
           transition: introStep === "transitioning" ? "clip-path 5000ms cubic-bezier(0.16, 1, 0.3, 1)" : "none",
         }}
       >
+      {showJinCinematicIntro && (
+        <div className="jin-cinematic-intro" aria-hidden="true">
+          <div className="jin-intro-vase-field">
+            <JinMinimalVase className="jin-intro-vase jin-intro-vase-left" />
+            <JinMinimalVase className="jin-intro-vase jin-intro-vase-right" />
+            <div className="jin-intro-split-flare" />
+          </div>
+          <div className="cinematic-title">泰山府悬案</div>
+        </div>
+      )}
+
       {/* Subtle paper rubbing noise background layer across the entire screen */}
       <div className="absolute inset-0 opacity-[0.025] pointer-events-none z-0 mix-blend-overlay">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
@@ -1060,7 +1136,7 @@ export default function App() {
       </div>
 
       {/* ================= DUAL-COLUMN VIEWPORT LAYOUT with FLOATING CENTERPIECE ================= */}
-      <div className="flex-1 w-full min-w-[1440px] flex flex-row relative z-10 min-h-[calc(100vh-100px)]">
+      <div className="jin-app-body flex-1 w-full min-w-[1440px] flex flex-row relative z-10 min-h-[calc(100vh-100px)]">
         
         {/* ================= EXTRA: SHADOW DIVISION INTERSECT BETWEEN COLUMNS ================= */}
         {/* Adds back the gorgeous vertical ambient dark shadow fading to both sides */}
@@ -1076,9 +1152,22 @@ export default function App() {
         {/* ================= 1. LEFT COLUMN: CLASSICAL PROSE TEXT (50% WIDTH) ================= */}
         {/* Widen standard right padding to guarantee no textual content is ever blocked by the central scaled bottle */}
         <section
-          className="w-1/2 flex flex-col justify-between py-20 pl-16 pr-36 z-10 box-border bg-[#3b4343] relative animate-fadeIn animate-duration-500"
+          className={`w-1/2 flex flex-col justify-between py-20 pl-16 pr-36 z-10 box-border bg-[#3b4343] relative animate-fadeIn animate-duration-500 ${
+            isJinTainted ? "tainted-state" : ""
+          }`}
           id="left-content-panel"
         >
+          {showJinWarningMode && (
+            <>
+              <div className="jin-center-vase-shadow jin-center-vase-shadow-left" aria-hidden="true">
+                <JinMinimalVase className="jin-center-vase-shadow-svg" />
+              </div>
+              <div className="jin-panel-vase-wrap jin-panel-vase-wrap-left" aria-hidden="true">
+                <JinMinimalVase className="jin-panel-vase" />
+              </div>
+            </>
+          )}
+
           <div className="h-4" />
 
           {/* Horizontal Left-Aligned Classical Prose Text */}
@@ -1187,6 +1276,17 @@ export default function App() {
           {isJinNpc ? (
             <>
               <div className="absolute inset-0 bg-[#131616] py-20 pr-16 pl-36 flex flex-col items-start justify-center z-10">
+                {showJinWarningMode && (
+                  <>
+                    <div className="jin-center-vase-shadow jin-center-vase-shadow-right" aria-hidden="true">
+                      <JinMinimalVase className="jin-center-vase-shadow-svg" />
+                    </div>
+                    <div className="jin-panel-vase-wrap jin-panel-vase-wrap-right" aria-hidden="true">
+                      <JinMinimalVase className="jin-panel-vase" />
+                    </div>
+                  </>
+                )}
+
                 <div className="max-h-full overflow-y-auto pr-2 space-y-6 w-full max-w-[760px]">
                   {jinShowingEnding && jinFinalPath ? (
                     <TypewriterParagraph
@@ -1624,7 +1724,7 @@ export default function App() {
           * Hover state: Brighter slate-grey text with a grey/slate underline.
           * Pressed/Selected state: Elegant cream-gold text with a gold/amber glowing underline.
       */}
-      <div className="w-full min-w-[1440px] border-t border-[#525e5e]/15 bg-gradient-to-r from-[#3b4343]/45 via-[#1f2525]/80 to-[#131616]/95 backdrop-blur-xl">
+      <div className="jin-bottom-dock w-full min-w-[1440px] border-t border-[#525e5e]/15 bg-gradient-to-r from-[#3b4343]/45 via-[#1f2525]/80 to-[#131616]/95 backdrop-blur-xl">
         <footer 
           className="w-full py-6 bg-transparent px-6 flex justify-center items-center z-30" 
           id="global-tabs-dock"
