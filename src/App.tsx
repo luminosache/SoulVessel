@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { npcScripts } from "./npcData";
@@ -13,8 +13,19 @@ import {
   toggleOptionSelection,
 } from "./npcLogic";
 import type { FillStage } from "./npcLogic";
+import { jinNpcData, type JinPath } from "./jinData";
+import {
+  findFinalPath,
+  findPathByChoice1,
+  findPathByChoice12,
+  isRenderableText,
+  renderLeftPanelFromSlots,
+  runJinWhiteboxMatrix,
+  validateJinData,
+} from "./jinLogic";
 
 type ActiveTab = string;
+type JinState = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 const introText = "生人死去，化作幽魂。\n前往泰山府的路上\n能携带的文书\n只有魂瓶上的寥寥数语……";
 const completedTypewriterCache = new Set<string>();
@@ -361,6 +372,38 @@ export default function App() {
   const [currentNpcIndex, setCurrentNpcIndex] = useState(0);
   const [isLeftTextFading, setIsLeftTextFading] = useState(false);
   const currentNpc = npcScripts[currentNpcIndex];
+  const isJinNpc = currentNpc.id === "npc3-jin";
+
+  const [jinState, setJinState] = useState<JinState>(0);
+  const [jinChoice1, setJinChoice1] = useState("");
+  const [jinChoice2, setJinChoice2] = useState("");
+  const [jinChoice3, setJinChoice3] = useState("");
+  const [jinLeftSlots, setJinLeftSlots] = useState({
+    text1: "",
+    text2: "",
+    text3: "",
+  });
+  const [jinRightText1, setJinRightText1] = useState("");
+  const [jinRightText2, setJinRightText2] = useState("");
+  const [jinRightText3, setJinRightText3] = useState("");
+  const [jinShowingEnding, setJinShowingEnding] = useState(false);
+  const [jinMatchedPath1, setJinMatchedPath1] = useState<JinPath | null>(null);
+  const [jinMatchedPath12, setJinMatchedPath12] = useState<JinPath | null>(null);
+  const [jinFinalPath, setJinFinalPath] = useState<JinPath | null>(null);
+  const [showJinArtifactOverlay, setShowJinArtifactOverlay] = useState(false);
+  const skipJinIntroDelayRef = useRef(false);
+
+  const jinTaintedChoiceId = jinNpcData.round_1.options[0]?.option_id ?? "";
+  const jinLeftRenderedLines = renderLeftPanelFromSlots(jinLeftSlots);
+  const jinRightNarrativeLines = [jinRightText1, jinRightText2, jinRightText3].filter(
+    isRenderableText,
+  );
+  const jinArtifacts = jinFinalPath?.artifacts ?? [];
+  const jinPrimaryArtifact = jinArtifacts[0] ?? null;
+  const canShowJinArtifact = jinState === 7 && jinArtifacts.length > 0;
+  const jinLeftPanelTitle = isJinNpc && jinState >= 2 ? "后世评价" : currentNpc.subtitle;
+  const jinWhiteboxRows = useMemo(() => runJinWhiteboxMatrix(jinNpcData), []);
+  const [showAboutAuthorPlaceholder, setShowAboutAuthorPlaceholder] = useState(false);
 
   // Hanging interactive items panel states
   const [selectedTagIdx, setSelectedTagIdx] = useState<number>(0);
@@ -412,7 +455,7 @@ export default function App() {
   ) as Record<ActiveTab, (typeof currentNpc.options)[number]>;
   const requiredSelectionCount =
     currentNpc.requiredTextSelections + currentNpc.requiredItemSelections;
-  const leftPanelLines = currentNpc.biography.split("\n\n");
+  const leftPanelLines = isJinNpc ? jinLeftRenderedLines : currentNpc.biography.split("\n\n");
   const hangingTagsData: HangingTagItem[] = currentNpc.carryItems.map((item) => ({
     name: item.name,
     pages: [
@@ -429,6 +472,70 @@ export default function App() {
     setArtifactPageIndex(0);
     setActiveDisplayTab(currentNpc.options[0]?.id ?? "");
   }, [currentNpcIndex, currentNpc.options]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+
+    const validation = validateJinData(jinNpcData);
+    if (!validation.ok) {
+      console.error("[jin] data validation failed", validation.errors);
+    } else {
+      console.log("[jin] data validation passed");
+    }
+
+    const tableRows = jinWhiteboxRows.map((row) => ({
+      path_id: row.path_id,
+      choice_1: row.choice_1,
+      choice_2: row.choice_2,
+      choice_3: row.choice_3,
+      final_result_title: row.final_result_title,
+      artifacts: row.artifacts ? "yes" : "no",
+      pass_fail: row.pass ? "pass" : "fail",
+      issue: row.issue,
+    }));
+    console.table(tableRows);
+  }, [jinWhiteboxRows]);
+
+  useEffect(() => {
+    const leftPanel = document.getElementById("left-content-panel");
+
+    if (isJinNpc) {
+      document.body.classList.add("jin-active");
+      initializeJinFlow();
+      leftPanel?.classList.remove("tainted-state");
+      return;
+    }
+
+    document.body.classList.remove("jin-active");
+    leftPanel?.classList.remove("tainted-state");
+  }, [isJinNpc, currentNpcIndex]);
+
+  useEffect(() => {
+    if (!isJinNpc) return;
+    if (jinState !== 0) return;
+
+    setJinLeftSlots({
+      text1: jinNpcData.background_texts.confession,
+      text2: "",
+      text3: "",
+    });
+    setJinRightText1(jinNpcData.background_texts.petition);
+    setJinRightText2("");
+    setJinRightText3("");
+    setJinShowingEnding(false);
+
+    if (skipJinIntroDelayRef.current) {
+      skipJinIntroDelayRef.current = false;
+      setJinState(1);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setJinState(1);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [isJinNpc, jinState]);
 
   // Toggle selection for bottom options
   const handleTabToggle = (tag: ActiveTab) => {
@@ -448,6 +555,115 @@ export default function App() {
 
     setActiveDisplayTab(tag);
     setSelectedTabs(nextSelectedOptionIds);
+  };
+
+  const setJinTaintedState = (enabled: boolean) => {
+    const leftPanel = document.getElementById("left-content-panel");
+    if (!leftPanel) return;
+    if (enabled) {
+      leftPanel.classList.add("tainted-state");
+    } else {
+      leftPanel.classList.remove("tainted-state");
+    }
+  };
+
+  const initializeJinFlow = (options?: { skipIntroDelay?: boolean }) => {
+    skipJinIntroDelayRef.current = options?.skipIntroDelay ?? false;
+    setShowAboutAuthorPlaceholder(false);
+    setShowJinArtifactOverlay(false);
+    setJinState(0);
+    setJinChoice1("");
+    setJinChoice2("");
+    setJinChoice3("");
+    setJinLeftSlots({ text1: "", text2: "", text3: "" });
+    setJinRightText1("");
+    setJinRightText2("");
+    setJinRightText3("");
+    setJinShowingEnding(false);
+    setJinMatchedPath1(null);
+    setJinMatchedPath12(null);
+    setJinFinalPath(null);
+    setJinTaintedState(false);
+  };
+
+  const handleJinRound1Select = (optionId: string) => {
+    const matched = findPathByChoice1(jinNpcData, optionId);
+    if (!matched) return;
+
+    setJinChoice1(optionId);
+    setJinMatchedPath1(matched);
+    setJinLeftSlots({
+      text1: matched.text_1_left,
+      text2: "",
+      text3: "",
+    });
+    setJinRightText1(matched.text_1_right);
+    setJinRightText2("");
+    setJinRightText3("");
+    setJinShowingEnding(false);
+    setJinState(3);
+
+    const isTainted = optionId === jinTaintedChoiceId;
+    setJinTaintedState(isTainted);
+  };
+
+  const handleJinRound2Select = (optionId: string) => {
+    if (!jinChoice1) return;
+    const matched = findPathByChoice12(jinNpcData, jinChoice1, optionId);
+    if (!matched) return;
+
+    setJinChoice2(optionId);
+    setJinMatchedPath12(matched);
+    setJinRightText2(matched.text_2_right_neutral);
+    setJinLeftSlots((prev) => ({
+      ...prev,
+      text2: matched.text_2_left_neutral,
+    }));
+    setJinState(5);
+  };
+
+  const handleJinRound3Select = (optionId: string) => {
+    if (!jinChoice1 || !jinChoice2) return;
+    const finalPath = findFinalPath(jinNpcData, jinChoice1, jinChoice2, optionId);
+    if (!finalPath) return;
+
+    setJinChoice3(optionId);
+    setJinFinalPath(finalPath);
+
+    // state 6: replace first, then append
+    setJinRightText2(finalPath.text_2_right);
+    setJinLeftSlots((prev) => ({
+      ...prev,
+      text2: finalPath.text_2_left,
+    }));
+
+    setJinRightText3(finalPath.text_3_right);
+    setJinLeftSlots((prev) => ({
+      ...prev,
+      text3: finalPath.text_3_left,
+    }));
+    setJinShowingEnding(false);
+    setJinState(6);
+  };
+
+  const handleJinViewEnding = () => {
+    if (jinState !== 6 || !jinFinalPath) return;
+    setJinShowingEnding(true);
+    setJinState(7);
+  };
+
+  const handleJinBackToNarrative = () => {
+    if (jinState !== 7) return;
+    initializeJinFlow({ skipIntroDelay: true });
+  };
+
+  const handleJinOpenArtifactOverlay = () => {
+    if (!canShowJinArtifact) return;
+    setShowJinArtifactOverlay(true);
+  };
+
+  const handleJinCloseArtifactOverlay = () => {
+    setShowJinArtifactOverlay(false);
   };
 
   const fillStage = getNpcFillStageFromSelection(selectedTabs.length);
@@ -875,7 +1091,7 @@ export default function App() {
             
             <div className="space-y-3">
               <span className="font-serif tracking-[0.4em] text-[#9bb1b1] block text-[250%] leading-none">
-                {currentNpc.subtitle}
+                {isJinNpc ? jinLeftPanelTitle : currentNpc.subtitle}
               </span>
               <div className="h-[1px] w-14 bg-[#8da4a4]/40" />
             </div>
@@ -897,7 +1113,8 @@ export default function App() {
 
           {/* ================= NEW INTERACTIVE TAGS & OPTIONS SECTION ================= */}
           {/* Elegant layout, stays perfectly inside the left panel color and border bounds */}
-          <div className="mt-8 pt-8 border-t border-[#525e5e]/25 space-y-4" id="interactive-relic-tags-section">
+          {!isJinNpc && (
+            <div className="mt-8 pt-8 border-t border-[#525e5e]/25 space-y-4" id="interactive-relic-tags-section">
             
             {/* Interactive Dual Hanging Cards display and descriptions */}
             <div className="grid grid-cols-2 gap-4">
@@ -955,7 +1172,8 @@ export default function App() {
               </div>
             </div>
 
-          </div>
+            </div>
+          )}
 
           <div className="h-6" />
         </section>
@@ -966,92 +1184,155 @@ export default function App() {
           className="w-1/2 flex flex-col justify-between py-20 pr-16 pl-36 z-10 box-border bg-[#131616] relative border-l border-[#2d3838]/15"
           id="right-content-panel"
         >
-          <AnimatePresence mode="popLayout">
-            {selectedTabs.length < requiredSelectionCount ? (
-              <motion.div
-                key="astrological-seal-block"
-                variants={pagePeelVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                className="absolute inset-0 bg-[#131616] flex flex-col items-center justify-center select-none origin-top-left z-10 py-20 pr-16 pl-36"
-                id="ritual-seal-diagram"
-              >
-                {/* Ultra-minimalist selection progress text */}
-                <div className="text-center space-y-4">
-                  <div className="font-serif text-[80px] tracking-[0.2em] font-light text-[#dfcdad] leading-none animate-pulse">
-                    {selectedTabs.length} <span className="text-[#526565]/40 text-4xl font-light">/</span> <span className="text-[#819595]/60 text-4xl font-light">{requiredSelectionCount}</span>
-                  </div>
-                  <div className="font-serif text-sm tracking-[0.4em] text-[#718585]/70 uppercase">
-                    激活进度
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="archeological-scroll-block"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ 
-                  opacity: isDissipating ? 0 : 1, 
-                  x: 0,
-                  transition: { duration: isDissipating ? 1.5 : 0.8 } 
-                }}
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.5 } }}
-                className="absolute inset-0 bg-[#131616] py-20 pr-16 pl-36 flex flex-col items-start justify-center z-10"
-                style={{
-                  transition: "opacity 1500ms ease-in-out"
-                }}
-              >
-                <div className="max-h-full overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-[#2d3838] scrollbar-track-transparent w-full max-w-[760px]">
-                  {currentEnding && (
+          {isJinNpc ? (
+            <>
+              <div className="absolute inset-0 bg-[#131616] py-20 pr-16 pl-36 flex flex-col items-start justify-center z-10">
+                <div className="max-h-full overflow-y-auto pr-2 space-y-6 w-full max-w-[760px]">
+                  {jinShowingEnding && jinFinalPath ? (
                     <TypewriterParagraph
-                      title={currentEnding.title}
-                      content={currentEnding.text}
+                      title={jinFinalPath.final_result.title}
+                      content={jinFinalPath.final_result.text}
                       delay={0}
-                      titleColorClass={isTrueEnding ? "text-[#dfcdad]" : "text-[#a4baba]"}
-                      triggerKey={`${triggerKey}-${currentEnding.id}`}
+                      titleColorClass="text-[#dfcdad]"
+                      triggerKey={`jin-ending-${jinFinalPath.path_id}`}
                     />
+                  ) : (
+                    <>
+                      {(jinState === 0 || jinState === 1) && (
+                        <div className="space-y-3">
+                          <span className="font-serif tracking-[0.4em] text-[#9bb1b1] block text-[250%] leading-none">
+                            戒子陈情书
+                          </span>
+                          <div className="h-[1px] w-14 bg-[#8da4a4]/40" />
+                        </div>
+                      )}
+                      {jinRightNarrativeLines.map((line, index) => (
+                        <p
+                          key={`jin-right-${index}`}
+                          className="font-serif text-sm tracking-[0.15em] text-[#8ba2a2] whitespace-pre-line leading-relaxed"
+                        >
+                          {line}
+                        </p>
+                      ))}
+                    </>
                   )}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </div>
 
-          {/* Action Button Area aligned with the left-edge of the right column text */}
-          <div className="absolute bottom-10 left-36 z-30 flex items-center space-x-6">
-            <button
-              onClick={() => {
-                if (isDissipating) return;
-                // Trigger tactile feedback vibration of the vessel ONLY (NO water ripples on reset as requested)
-                setVibrateTrigger(false);
-                setRippleTrigger(false);
-                setIsDissipating(true);
-                setTimeout(() => {
-                  setVibrateTrigger(true);
-                }, 12);
-                // Gradually reset visual state after fading out completely first
-                setTimeout(() => {
-                  setSelectedTabs([]);
-                  setActiveDisplayTab(currentNpc.options[0]?.id ?? "");
-                  setIsDissipating(false);
-                  previousSelectedCountRef.current = 0;
-                }, 1500);
-              }}
-              className="font-serif text-sm tracking-[0.4em] text-[#819595]/50 hover:text-[#dfcdad] transition-all duration-300 py-1.5 bg-transparent border-none rounded-none cursor-pointer relative z-40"
-              title="重设所有选项"
-            >
-              重选
-            </button>
+              <div className="absolute bottom-10 left-36 z-30 flex items-center space-x-6">
+                {jinState === 6 && (
+                  <button
+                    onClick={handleJinViewEnding}
+                    className="font-serif text-sm tracking-[0.35em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer"
+                  >
+                    查看结局
+                  </button>
+                )}
+                {jinState === 7 && (
+                  <>
+                    <button
+                      onClick={handleJinBackToNarrative}
+                      className="font-serif text-sm tracking-[0.35em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer"
+                    >
+                      重选
+                    </button>
+                    {canShowJinArtifact && (
+                      <TypewriterArtifactButton onClick={handleJinOpenArtifactOverlay} />
+                    )}
+                  </>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <AnimatePresence mode="popLayout">
+                {selectedTabs.length < requiredSelectionCount ? (
+                  <motion.div
+                    key="astrological-seal-block"
+                    variants={pagePeelVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    className="absolute inset-0 bg-[#131616] flex flex-col items-center justify-center select-none origin-top-left z-10 py-20 pr-16 pl-36"
+                    id="ritual-seal-diagram"
+                  >
+                    {/* Ultra-minimalist selection progress text */}
+                    <div className="text-center space-y-4">
+                      <div className="font-serif text-[80px] tracking-[0.2em] font-light text-[#dfcdad] leading-none animate-pulse">
+                        {selectedTabs.length} <span className="text-[#526565]/40 text-4xl font-light">/</span> <span className="text-[#819595]/60 text-4xl font-light">{requiredSelectionCount}</span>
+                      </div>
+                      <div className="font-serif text-sm tracking-[0.4em] text-[#718585]/70 uppercase">
+                        激活进度
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="archeological-scroll-block"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ 
+                      opacity: isDissipating ? 0 : 1, 
+                      x: 0,
+                      transition: { duration: isDissipating ? 1.5 : 0.8 } 
+                    }}
+                    exit={{ opacity: 0, x: -20, transition: { duration: 0.5 } }}
+                    className="absolute inset-0 bg-[#131616] py-20 pr-16 pl-36 flex flex-col items-start justify-center z-10"
+                    style={{
+                      transition: "opacity 1500ms ease-in-out"
+                    }}
+                  >
+                    <div className="max-h-full overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-[#2d3838] scrollbar-track-transparent w-full max-w-[760px]">
+                      {currentEnding && (
+                        <TypewriterParagraph
+                          title={currentEnding.title}
+                          content={currentEnding.text}
+                          delay={0}
+                          titleColorClass={isTrueEnding ? "text-[#dfcdad]" : "text-[#a4baba]"}
+                          triggerKey={`${triggerKey}-${currentEnding.id}`}
+                        />
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-            {currentArtifacts.length > 0 && (
-              <TypewriterArtifactButton
-                onClick={() => {
-                  setArtifactPageIndex(0);
-                  setShowArtifactOverlay(true);
-                }}
-              />
-            )}
-          </div>
+              {/* Action Button Area aligned with the left-edge of the right column text */}
+              <div className="absolute bottom-10 left-36 z-30 flex items-center space-x-6">
+                <button
+                  onClick={() => {
+                    if (isDissipating) return;
+                    // Trigger tactile feedback vibration of the vessel ONLY (NO water ripples on reset as requested)
+                    setVibrateTrigger(false);
+                    setRippleTrigger(false);
+                    setIsDissipating(true);
+                    setTimeout(() => {
+                      setVibrateTrigger(true);
+                    }, 12);
+                    // Gradually reset visual state after fading out completely first
+                    setTimeout(() => {
+                      setSelectedTabs([]);
+                      setActiveDisplayTab(currentNpc.options[0]?.id ?? "");
+                      setIsDissipating(false);
+                      previousSelectedCountRef.current = 0;
+                    }, 1500);
+                  }}
+                  className="font-serif text-sm tracking-[0.4em] text-[#819595]/50 hover:text-[#dfcdad] transition-all duration-300 py-1.5 bg-transparent border-none rounded-none cursor-pointer relative z-40"
+                  title="重设所有选项"
+                >
+                  重选
+                </button>
+
+                {currentArtifacts.length > 0 && (
+                  <TypewriterArtifactButton
+                    onClick={() => {
+                      setArtifactPageIndex(0);
+                      setShowArtifactOverlay(true);
+                    }}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </section>
 
 
@@ -1349,32 +1630,140 @@ export default function App() {
           id="global-tabs-dock"
         >
           <div className="w-full max-w-6xl flex flex-col items-center justify-center space-y-4">
-            
-            <div
-              className={`${isTwoRowOptions ? "two-row-options" : "grid grid-cols-4 gap-12"} w-full max-w-4xl text-center`}
-            >
-              {isChengtaoNpc ? (
-                <>
-                  <div className="chengtao-top-row">
-                    <div className="chengtao-option-pair">
-                      {chengtaoTextOptionIds.slice(0, 2).map((tag) => renderOptionCard(tag))}
-                    </div>
-                    <div className="chengtao-option-pair">
-                      {chengtaoTextOptionIds.slice(2, 4).map((tag) => renderOptionCard(tag))}
-                    </div>
+            {isJinNpc ? (
+              <div className="w-full max-w-4xl text-center">
+                {jinState === 1 && (
+                  <div className="grid grid-cols-2 gap-12">
+                    {jinNpcData.round_1.options.map((option) => (
+                      <button
+                        key={`jin-r1-${option.option_id}`}
+                        onClick={() => handleJinRound1Select(option.option_id)}
+                        className="font-serif text-base tracking-[0.25em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer py-3"
+                      >
+                        {option.text}
+                      </button>
+                    ))}
                   </div>
-                  <div className="chengtao-bottom-row">
-                    {chengtaoItemOptionIds.map((tag) => renderOptionCard(tag))}
+                )}
+                {jinState === 3 && (
+                  <div className="grid grid-cols-3 gap-10">
+                    {jinNpcData.round_2.options.map((option) => (
+                      <button
+                        key={`jin-r2-${option.option_id}`}
+                        onClick={() => handleJinRound2Select(option.option_id)}
+                        className="font-serif text-base tracking-[0.2em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer py-3"
+                      >
+                        {option.text}
+                      </button>
+                    ))}
                   </div>
-                </>
-              ) : (
-                optionSlots.map((item) => renderOptionCard(item.tag as ActiveTab))
-              )}
-            </div>
+                )}
+                {jinState === 5 && (
+                  <div className="grid grid-cols-2 gap-12">
+                    {jinNpcData.round_3.options.map((option) => (
+                      <button
+                        key={`jin-r3-${option.option_id}`}
+                        onClick={() => handleJinRound3Select(option.option_id)}
+                        className="font-serif text-base tracking-[0.2em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer py-3"
+                      >
+                        {option.text}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                className={`${isTwoRowOptions ? "two-row-options" : "grid grid-cols-4 gap-12"} w-full max-w-4xl text-center`}
+              >
+                {isChengtaoNpc ? (
+                  <>
+                    <div className="chengtao-top-row">
+                      <div className="chengtao-option-pair">
+                        {chengtaoTextOptionIds.slice(0, 2).map((tag) => renderOptionCard(tag))}
+                      </div>
+                      <div className="chengtao-option-pair">
+                        {chengtaoTextOptionIds.slice(2, 4).map((tag) => renderOptionCard(tag))}
+                      </div>
+                    </div>
+                    <div className="chengtao-bottom-row">
+                      {chengtaoItemOptionIds.map((tag) => renderOptionCard(tag))}
+                    </div>
+                  </>
+                ) : (
+                  optionSlots.map((item) => renderOptionCard(item.tag as ActiveTab))
+                )}
+              </div>
+            )}
 
           </div>
         </footer>
       </div>
+
+      {showAboutAuthorPlaceholder && isJinNpc && (
+        <div className="absolute inset-0 z-[90] bg-[#131616]" />
+      )}
+
+      {showJinArtifactOverlay && isJinNpc && jinPrimaryArtifact && (
+        <div className="fixed inset-0 z-50 bg-[#0d0f0f]/75 backdrop-blur-2xl flex items-center justify-center p-4 md:p-8 lg:p-12 animate-fadeIn">
+          <div className="w-full max-w-5xl h-[90vh] md:h-[80vh] bg-[#060707]/60 backdrop-blur-lg border border-[#2d3838]/25 rounded flex flex-col md:flex-row relative overflow-hidden shadow-2xl">
+            <button
+              onClick={handleJinCloseArtifactOverlay}
+              className="absolute top-4 right-4 text-[#819595]/60 hover:text-[#dfcdad] transition-all duration-300 font-serif text-xs tracking-widest cursor-pointer z-50 py-1.5 px-3 border border-[#525e5e]/15 hover:border-[#dfcdad]/40 rounded bg-[#131616]/70"
+              title="关闭"
+            >
+              关闭
+            </button>
+
+            <div className="w-full md:w-[42%] border-b md:border-b-0 md:border-r border-[#2d3838]/25 p-6 md:p-8 flex flex-col items-center justify-center h-[40%] md:h-full box-border relative">
+              <div className="w-full h-full border border-[#2d3838]/30 bg-[#030404] flex flex-col items-center justify-center p-4 relative box-border rounded overflow-hidden">
+                <div className="absolute w-44 h-44 rounded-full bg-[#ee9c27]/10 filter blur-[45px] animate-pulse z-0 pointer-events-none" />
+                <div className="w-full h-[85%] relative z-10 flex items-center justify-center select-none">
+                  <img
+                    src={jinPrimaryArtifact.imageSrc ?? "/jiedie.jpeg"}
+                    alt={jinPrimaryArtifact.caption ?? jinPrimaryArtifact.title ?? "金诚泽文物"}
+                    className="w-full h-full max-h-[260px] md:max-h-[350px] object-contain opacity-95"
+                  />
+                </div>
+                <div className="absolute bottom-2 text-center">
+                  <span className="font-serif text-[10px] md:text-[11px] tracking-[0.2em] text-[#dfcdad] block">
+                    {jinPrimaryArtifact.caption ?? jinPrimaryArtifact.title}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full md:w-[58%] flex flex-col justify-between p-6 md:p-10 lg:p-12 h-[60%] md:h-full box-border relative overflow-hidden">
+              <div className="space-y-3 pt-6 md:pt-4 z-10">
+                <h2 className="font-serif text-lg md:text-xl lg:text-2xl tracking-[0.35em] text-[#dfcdad] leading-tight font-medium">
+                  {jinPrimaryArtifact.title}
+                </h2>
+                <span className="font-serif text-[10px] md:text-xs tracking-[0.2em] text-[#7c9595] block whitespace-pre-line">
+                  {jinPrimaryArtifact.subtitle}
+                </span>
+                <div className="h-[1px] w-20 bg-[#dfcdad]/30 mt-4" />
+              </div>
+
+              <div className="flex-1 my-6 pr-4 overflow-y-auto custom-narrow-scrollbar space-y-6 z-10 scroll-smooth">
+                {jinPrimaryArtifact.sections.map((section, index) => (
+                  <div key={`jin-artifact-modal-section-${index}`} className="space-y-3">
+                    {isRenderableText(section.section_title) && (
+                      <span className="font-serif text-[10px] md:text-[11px] tracking-[0.3em] text-[#dfcdad]/70 block font-medium">
+                        {section.section_title}
+                      </span>
+                    )}
+                    {isRenderableText(section.text) && (
+                      <p className="font-serif text-xs md:text-sm tracking-widest text-[#819a9a] text-justify leading-relaxed whitespace-pre-line">
+                        {section.text}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= 5. ARTIFACT MUSEUM OVERLAY ================= */}
       {showArtifactOverlay && currentArtifact && (
