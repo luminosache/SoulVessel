@@ -391,6 +391,7 @@ export default function App() {
   const [jinMatchedPath12, setJinMatchedPath12] = useState<JinPath | null>(null);
   const [jinFinalPath, setJinFinalPath] = useState<JinPath | null>(null);
   const [showJinArtifactOverlay, setShowJinArtifactOverlay] = useState(false);
+  const skipJinIntroDelayRef = useRef(false);
 
   const jinTaintedChoiceId = jinNpcData.round_1.options[0]?.option_id ?? "";
   const jinLeftRenderedLines = renderLeftPanelFromSlots(jinLeftSlots);
@@ -523,6 +524,12 @@ export default function App() {
     setJinRightText3("");
     setJinShowingEnding(false);
 
+    if (skipJinIntroDelayRef.current) {
+      skipJinIntroDelayRef.current = false;
+      setJinState(1);
+      return;
+    }
+
     const timer = window.setTimeout(() => {
       setJinState(1);
     }, 5000);
@@ -560,7 +567,8 @@ export default function App() {
     }
   };
 
-  const initializeJinFlow = () => {
+  const initializeJinFlow = (options?: { skipIntroDelay?: boolean }) => {
+    skipJinIntroDelayRef.current = options?.skipIntroDelay ?? false;
     setShowAboutAuthorPlaceholder(false);
     setShowJinArtifactOverlay(false);
     setJinState(0);
@@ -646,7 +654,7 @@ export default function App() {
 
   const handleJinBackToNarrative = () => {
     if (jinState !== 7) return;
-    initializeJinFlow();
+    initializeJinFlow({ skipIntroDelay: true });
   };
 
   const handleJinOpenArtifactOverlay = () => {
