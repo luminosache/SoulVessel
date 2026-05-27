@@ -1,4 +1,4 @@
-export type OptionKind = "text" | "item";
+﻿export type OptionKind = "text" | "item";
 
 export interface NpcOption {
   id: string;
@@ -302,4 +302,17 @@ export const npc2: NpcScript = {
   ],
 };
 
-export const npcScripts: NpcScript[] = [npc1, npc2];
+export const npc3: NpcScript = {
+  id: "npc3-jin",
+  name: "\u91d1\u8bda\u6cfd",
+  chapter: "npc3 \u91d1\u8bda\u6cfd",
+  subtitle: "\u91d1\u8bda\u6cfd\u81ea\u8ff0",
+  biography: "",
+  carryItems: [],
+  options: [],
+  requiredTextSelections: 0,
+  requiredItemSelections: 0,
+  endings: [],
+};
+
+export const npcScripts: NpcScript[] = [npc1, npc2, npc3];

@@ -12,9 +12,10 @@ const unify = "unify-six-states";
 const food = "food-secure";
 const retire = "disarm-return-field";
 
-assert.equal(npcScripts.length, 2);
+assert.equal(npcScripts.length, 3);
 assert.equal(npcScripts[0].id, "npc1-jing");
 assert.equal(npcScripts[1].id, "npc2-chengtao");
+assert.equal(npcScripts[2].id, "npc3-jin");
 
 assert.equal(getFillStageFromSelection(0), 0);
 assert.equal(getFillStageFromSelection(1), 1);
