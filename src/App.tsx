@@ -31,6 +31,11 @@ import {
   TYPEWRITER_CONTENT_INTERVAL_MS,
   TYPEWRITER_TITLE_INTERVAL_MS,
 } from "./typewriterLogic";
+import {
+  markJinEndingSeen,
+  markTutorialSeen,
+  readProgress,
+} from "./progress";
 
 type ActiveTab = string;
 type JinState = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
@@ -50,6 +55,12 @@ const introInscriptions = [
     alt: "碑文左下",
     className: "inscription-5806",
   },
+];
+
+const tutorialSteps = [
+  "请先阅读幽魂的自述和携带到你面前的物品。",
+  "在此处做出选择，为幽魂制作魂瓶，你所写下的词语将直接被泰山府君阅读。",
+  "看到『查看文物』时，可以点击接引下一位。",
 ];
 
 function renderTextWithBold(text: string) {
@@ -293,6 +304,8 @@ export default function App() {
   const [soilBlocks, setSoilBlocks] = useState<any[]>([]);
   const [eyeOpening, setEyeOpening] = useState(false);
   const [darkOcclusion, setDarkOcclusion] = useState(0);
+  const [progress, setProgress] = useState(() => readProgress());
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (introStep !== "show") return;
@@ -739,6 +752,7 @@ export default function App() {
     if (jinState !== 6 || !jinFinalPath) return;
     setJinShowingEnding(true);
     setJinState(7);
+    setProgress(markJinEndingSeen());
   };
 
   const handleJinBackToNarrative = () => {
@@ -828,6 +842,63 @@ export default function App() {
   const showExplanationHeading = currentNpc.id !== "npc2-chengtao";
   const canShowStandardEndingActions =
     Boolean(currentEnding) && endingActionsVisible && !isDissipating;
+  const canShowUnlockedFeatures = progress.hasSeenJinEnding;
+  const shouldShowTutorialOverlay =
+    introStep === "done" &&
+    currentNpc.id === "npc1-jing" &&
+    !progress.hasSeenTutorial &&
+    !showArtifactOverlay &&
+    !showAboutAuthorPlaceholder;
+
+  const resetStandardNpcView = () => {
+    setShowArtifactOverlay(false);
+    setSelectedTabs([]);
+    setActiveDisplayTab("");
+    setVisualFillStage(0);
+    setIsDissipating(false);
+    setSettlementRunId(0);
+    setEndingActionsVisible(false);
+    previousSelectedCountRef.current = 0;
+  };
+
+  const enterNpcFromCover = (npcIndex: number, event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setIntroStep("done");
+    setSoilActive(false);
+    setSoilBlocks([]);
+    setEyeOpening(false);
+    setDarkOcclusion(0);
+    setIsShaking(false);
+    setIsTombRumbling(false);
+    setShowAboutAuthorPlaceholder(false);
+    resetStandardNpcView();
+    setCurrentNpcIndex(npcIndex);
+
+    if (npcScripts[npcIndex]?.id === "npc3-jin") {
+      initializeJinFlow({ skipIntroDelay: true });
+    }
+  };
+
+  const handleOpenAboutGame = () => {
+    setShowAboutAuthorPlaceholder(true);
+  };
+
+  const handleReturnToCover = () => {
+    setShowAboutAuthorPlaceholder(false);
+    setIntroStep("show");
+  };
+
+  const completeTutorial = () => {
+    setProgress(markTutorialSeen());
+  };
+
+  const handleTutorialNext = () => {
+    if (tutorialStepIndex >= tutorialSteps.length - 1) {
+      completeTutorial();
+      return;
+    }
+    setTutorialStepIndex((index) => index + 1);
+  };
 
   useEffect(() => {
     setArtifactPageIndex(0);
@@ -1139,6 +1210,21 @@ export default function App() {
             >
               —点击任意处开始游戏—
             </div>
+
+            {canShowUnlockedFeatures && introStep === "show" && (
+              <div className="fixed bottom-[15vh] left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 cursor-default">
+                {npcScripts.map((npc, index) => (
+                  <button
+                    key={`cover-shortcut-${npc.id}`}
+                    onClick={(event) => enterNpcFromCover(index, event)}
+                    className="font-serif text-xs tracking-[0.3em] text-[#9bb1b1] hover:text-[#dfcdad] border border-[#637575]/25 hover:border-[#dfcdad]/45 bg-[#0d0f0f]/45 hover:bg-[#131616]/80 px-4 py-2 transition-all duration-300 cursor-pointer"
+                    title={`进入${npc.name}`}
+                  >
+                    {npc.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1157,6 +1243,16 @@ export default function App() {
           transition: introStep === "transitioning" ? "clip-path 5000ms cubic-bezier(0.16, 1, 0.3, 1)" : "none",
         }}
       >
+
+      {canShowUnlockedFeatures && !showAboutAuthorPlaceholder && (
+        <button
+          onClick={handleOpenAboutGame}
+          className="fixed right-16 bottom-32 z-[80] font-serif text-xs tracking-[0.28em] text-[#f2d08a] hover:text-[#ffe1a3] border border-[#8a6a32]/55 hover:border-[#c89b4a]/80 bg-[#0d0f0f]/50 hover:bg-[#131616]/90 px-4 py-2 transition-all duration-300 cursor-pointer shadow-[0_0_18px_rgba(138,106,50,0.12)]"
+          title="关于本游戏"
+        >
+          关于本游戏
+        </button>
+      )}
 
       {/* Cinematic Intro Overlay for Jin Chengze */}
       {isJinNpc && isJinIntroPlaying && (
@@ -1826,8 +1922,63 @@ export default function App() {
         </footer>
       </div>
 
-      {showAboutAuthorPlaceholder && isJinNpc && (
-        <div className="absolute inset-0 z-[90] bg-[#131616]" />
+      {shouldShowTutorialOverlay && (
+        <div className="fixed left-1/2 bottom-[126px] z-[70] w-[720px] -translate-x-1/2 border border-[#637575]/25 bg-[#101313]/90 backdrop-blur-xl px-6 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.35)] animate-fadeIn">
+          <div className="flex items-center gap-5">
+            <span className="shrink-0 font-serif text-[11px] tracking-[0.28em] text-[#dfcdad]/75">
+              指引 {tutorialStepIndex + 1} / {tutorialSteps.length}
+            </span>
+            <p className="min-w-0 flex-1 font-serif text-sm tracking-[0.16em] leading-relaxed text-[#d4dddd]">
+              {tutorialSteps[tutorialStepIndex]}
+            </p>
+            <div className="shrink-0 flex items-center gap-4">
+              <button
+                onClick={completeTutorial}
+                className="font-serif text-[11px] tracking-[0.24em] text-[#819595] hover:text-[#dfcdad] transition-colors cursor-pointer"
+              >
+                跳过
+              </button>
+              <button
+                onClick={handleTutorialNext}
+                className="font-serif text-xs tracking-[0.28em] text-[#dfcdad] hover:text-[#ffd179] transition-colors cursor-pointer"
+              >
+                {tutorialStepIndex >= tutorialSteps.length - 1 ? "完成" : "下一步"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAboutAuthorPlaceholder && (
+        <div className="fixed inset-0 z-[90] bg-[#101313]/95 backdrop-blur-xl flex items-center justify-center animate-fadeIn">
+          <div className="w-full max-w-2xl px-10 py-12 border border-[#637575]/25 bg-[#131616]/85">
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <h1 className="font-serif text-3xl tracking-[0.45em] text-[#dfcdad] font-light">
+                  关于本游戏
+                </h1>
+                <div className="h-[1px] w-20 bg-[#dfcdad]/35" />
+              </div>
+              <p className="font-serif text-sm tracking-[0.18em] leading-loose text-[#9bb1b1]">
+                制作说明与致谢
+              </p>
+              <div className="flex items-center gap-5 pt-4">
+                <button
+                  onClick={() => setShowAboutAuthorPlaceholder(false)}
+                  className="font-serif text-xs tracking-[0.3em] text-[#9bb1b1] hover:text-[#dfcdad] transition-colors cursor-pointer"
+                >
+                  返回游戏
+                </button>
+                <button
+                  onClick={handleReturnToCover}
+                  className="font-serif text-xs tracking-[0.3em] text-[#9bb1b1] hover:text-[#dfcdad] transition-colors cursor-pointer"
+                >
+                  回到封面
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {showJinArtifactOverlay && isJinNpc && jinPrimaryArtifact && (
