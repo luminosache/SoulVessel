@@ -14,6 +14,7 @@ const SOUND_CONFIG: Record<SoundName, { src: string; volume: number; loop?: bool
 
 const audioElements = new Map<SoundName, HTMLAudioElement>();
 const mutedListeners = new Set<(muted: boolean) => void>();
+const activeLoopingSounds = new Set<SoundName>();
 let audioUnlocked = false;
 let warnedMissing = new Set<SoundName>();
 
@@ -52,6 +53,7 @@ function getAudio(name: SoundName) {
 }
 
 export function unlockAudio() {
+  if (audioUnlocked) return;
   audioUnlocked = true;
   for (const name of Object.keys(SOUND_CONFIG) as SoundName[]) {
     getAudio(name)?.load();
@@ -71,7 +73,7 @@ export function setSoundMuted(nextMuted: boolean) {
   }
 
   if (nextMuted) {
-    stopAllLoopingSounds();
+    stopAllSounds();
   }
 
   mutedListeners.forEach((listener) => listener(muted));
@@ -91,22 +93,32 @@ export function playSound(name: SoundName) {
   if (!audio) return;
 
   const config = SOUND_CONFIG[name];
-  if (config.loop && !audio.paused) return;
+  if (config.loop && activeLoopingSounds.has(name)) return;
 
   try {
+    if (config.loop) {
+      activeLoopingSounds.add(name);
+    }
     audio.currentTime = 0;
     audio.volume = config.volume;
     audio.loop = config.loop === true;
     void audio.play().catch(() => {
+      if (config.loop) {
+        activeLoopingSounds.delete(name);
+      }
       if (!audioUnlocked) return;
     });
   } catch {
+    if (config.loop) {
+      activeLoopingSounds.delete(name);
+    }
     // Missing files, unsupported codecs, or autoplay policy failures should stay silent.
   }
 }
 
 export function stopSound(name: SoundName) {
   const audio = audioElements.get(name);
+  activeLoopingSounds.delete(name);
   if (!audio) return;
   audio.pause();
   try {
@@ -121,5 +133,11 @@ export function stopAllLoopingSounds() {
     if (SOUND_CONFIG[name].loop) {
       stopSound(name);
     }
+  }
+}
+
+function stopAllSounds() {
+  for (const name of audioElements.keys()) {
+    stopSound(name);
   }
 }

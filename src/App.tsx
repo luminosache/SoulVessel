@@ -469,6 +469,7 @@ export default function App() {
   const [isJinVesselDissipating, setIsJinVesselDissipating] = useState(false);
   const hasPlayedJinIntroRef = useRef(false);
   const skipJinIntroDelayRef = useRef(false);
+  const wasJinMadStateRef = useRef(false);
 
   const jinTaintedChoiceId = jinNpcData.round_1.options[0]?.option_id ?? "";
   const jinDisguiseChoiceId =
@@ -881,7 +882,6 @@ export default function App() {
   const enterNpcFromCover = (npcIndex: number, event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     unlockAudio();
-    playSound("enter");
     setIntroStep("done");
     setSoilActive(false);
     setSoilBlocks([]);
@@ -945,12 +945,16 @@ export default function App() {
       jinState >= 3 &&
       jinChoice1 === jinTaintedChoiceId;
 
-    if (isMadState) {
+    if (isMadState && !wasJinMadStateRef.current) {
       playSound("mad");
+      wasJinMadStateRef.current = true;
       return;
     }
 
-    stopSound("mad");
+    if (!isMadState && wasJinMadStateRef.current) {
+      stopSound("mad");
+      wasJinMadStateRef.current = false;
+    }
   }, [isJinNpc, jinState, jinChoice1, jinTaintedChoiceId]);
 
   const handleGuideNextNpc = () => {
