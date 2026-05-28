@@ -1218,8 +1218,8 @@ export default function App() {
             <div className="space-y-8" id="classical-prose-verses">
               {leftPanelLines.map((line, idx) => (
                 <p
-                  key={isJinNpc ? `jin-left-${jinState}-${idx}` : idx}
-                  className={`font-serif text-xl tracking-[0.25em] text-[#e2e6e6] leading-relaxed text-left transition-all duration-300 whitespace-pre-line ${isJinNpc ? "fade-in-slow" : ""}`}
+                  key={isJinNpc ? `jin-left-${idx}-${line}` : idx}
+                  className={`font-serif text-xl tracking-[0.25em] text-[#e2e6e6] leading-relaxed text-left transition-all duration-300 whitespace-pre-line ${isJinNpc ? "fade-in-slow text-fade-in" : ""}`}
                 >
                   {renderTextWithBold(line)}
                 </p>
@@ -1325,8 +1325,8 @@ export default function App() {
                       )}
                       {jinRightNarrativeLines.map((line, index) => (
                         <p
-                          key={`jin-right-${index}`}
-                          className={`font-serif text-lg tracking-[0.15em] text-[#8ba2a2] whitespace-pre-line leading-relaxed ${isJinNpc ? "fade-in-slow" : ""}`}
+                          key={`jin-right-${index}-${line}`}
+                          className={`font-serif text-lg tracking-[0.15em] text-[#8ba2a2] whitespace-pre-line leading-relaxed ${isJinNpc ? "fade-in-slow text-fade-in" : ""}`}
                         >
                           {line}
                         </p>

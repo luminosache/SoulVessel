@@ -315,3 +315,76 @@ body.jin-active b {
   padding: 0 2px;
   font-weight: 500;
 }
+
+/* ================= PURE VISUAL POLISH OVERRIDES ================= */
+
+#left-content-panel,
+#right-content-panel,
+#left-text-panel,
+#classical-prose-verses,
+#classical-prose-verses p,
+#tag-desc-box,
+#tag-desc-box p,
+#global-tabs-dock,
+#global-tabs-dock button,
+#global-tabs-dock [id^="tab-visual-"],
+#global-tabs-dock [id^="tab-visual-"] span,
+#global-tabs-dock [id^="tab-visual-"] div,
+.text-box,
+.typewriter-content,
+.typewriter-content span {
+  transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes textFadeIn {
+  from {
+    opacity: 0;
+    filter: blur(7px);
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes textFadeInStill {
+  from {
+    opacity: 0;
+    filter: blur(7px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.text-fade-in {
+  animation: textFadeIn 1.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+body.jin-active #left-content-panel p.text-fade-in:not(.typewriter-content) {
+  animation: textFadeIn 1.45s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  will-change: opacity, filter, transform;
+}
+
+body.jin-active #right-content-panel p.text-fade-in:not(.typewriter-content) {
+  animation: textFadeInStill 1.45s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  will-change: opacity, filter;
+}
+
+.cinematic-title {
+  text-shadow:
+    0 0 15px rgba(223, 205, 173, 0.6),
+    0 0 34px rgba(140, 58, 58, 0.36),
+    0 0 72px rgba(18, 7, 7, 0.9);
+  filter: drop-shadow(0 0 18px rgba(223, 205, 173, 0.22));
+}
+
+body.jin-active #right-content-panel .text-box > .typewriter-content > strong,
+body.jin-active #right-content-panel .text-box > p[aria-hidden="true"] > strong {
+  border-bottom: none !important;
+  text-decoration: none !important;
+  background: none !important;
+}
