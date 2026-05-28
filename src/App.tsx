@@ -37,6 +37,8 @@ import {
   readProgress,
 } from "./progress";
 import OrientationHint from "./OrientationHint";
+import SoundToggle from "./SoundToggle";
+import { playSound, stopSound, unlockAudio } from "./soundManager";
 
 type ActiveTab = string;
 type JinState = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
@@ -326,6 +328,8 @@ export default function App() {
 
   const handleIntroClick = () => {
     if (introStep !== "show") return;
+    unlockAudio();
+    playSound("enter");
     setIsShaking(true);
 
     const blocks: any[] = [];
@@ -626,6 +630,8 @@ export default function App() {
 
     if (nextSelectedOptionIds === selectedOptionIds) return;
 
+    unlockAudio();
+    playSound("choice");
     setVibrateTrigger(false);
     setRippleTrigger(false);
     setTimeout(() => {
@@ -687,6 +693,8 @@ export default function App() {
     const matched = findPathByChoice1(jinNpcData, optionId);
     if (!matched) return;
 
+    unlockAudio();
+    playSound("choice");
     setJinChoice1(optionId);
     setJinMatchedPath1(matched);
     setJinLeftSlots({
@@ -711,6 +719,8 @@ export default function App() {
     const matched = findPathByChoice12(jinNpcData, jinChoice1, optionId);
     if (!matched) return;
 
+    unlockAudio();
+    playSound("choice");
     setJinChoice2(optionId);
     setJinMatchedPath12(matched);
     setJinRightText2(matched.text_2_right_neutral);
@@ -727,6 +737,8 @@ export default function App() {
     const finalPath = findFinalPath(jinNpcData, jinChoice1, jinChoice2, optionId);
     if (!finalPath) return;
 
+    unlockAudio();
+    playSound("choice");
     setJinChoice3(optionId);
     setJinFinalPath(finalPath);
 
@@ -751,6 +763,8 @@ export default function App() {
 
   const handleJinViewEnding = () => {
     if (jinState !== 6 || !jinFinalPath) return;
+    unlockAudio();
+    playSound("verdict");
     setJinShowingEnding(true);
     setJinState(7);
     setProgress(markJinEndingSeen());
@@ -770,6 +784,8 @@ export default function App() {
 
   const handleJinOpenArtifactOverlay = () => {
     if (!canShowJinArtifact) return;
+    unlockAudio();
+    playSound("artifact");
     setShowJinArtifactOverlay(true);
   };
 
@@ -864,6 +880,8 @@ export default function App() {
 
   const enterNpcFromCover = (npcIndex: number, event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
+    unlockAudio();
+    playSound("enter");
     setIntroStep("done");
     setSoilActive(false);
     setSoilBlocks([]);
@@ -881,6 +899,8 @@ export default function App() {
   };
 
   const handleOpenAboutGame = () => {
+    unlockAudio();
+    playSound("about");
     setShowAboutAuthorPlaceholder(true);
   };
 
@@ -906,12 +926,38 @@ export default function App() {
   }, [currentEnding?.id]);
 
   useEffect(() => {
+    if (!currentEnding) return;
+    playSound("verdict");
+  }, [currentEnding?.id]);
+
+  useEffect(() => {
     setEndingActionsVisible(false);
   }, [currentEnding?.id, triggerKey]);
+
+  useEffect(() => {
+    if (vesselFillCount <= 0 || isVesselDissipating) return;
+    playSound("fill");
+  }, [vesselFillCount, isVesselDissipating]);
+
+  useEffect(() => {
+    const isMadState =
+      isJinNpc &&
+      jinState >= 3 &&
+      jinChoice1 === jinTaintedChoiceId;
+
+    if (isMadState) {
+      playSound("mad");
+      return;
+    }
+
+    stopSound("mad");
+  }, [isJinNpc, jinState, jinChoice1, jinTaintedChoiceId]);
 
   const handleGuideNextNpc = () => {
     if (!canGuideNext) return;
 
+    unlockAudio();
+    playSound("enter");
     setShowArtifactOverlay(false);
     setSelectedTabs([]);
     setActiveDisplayTab("");
@@ -1003,6 +1049,7 @@ export default function App() {
   return (
     <>
       <OrientationHint />
+      <SoundToggle />
 
       {/* ================= 2.1 INTRO SCREEN ELEMENT AT THE VERY TOP OF BODY-LAND ================= */}
       {introStep !== "done" && (
@@ -1545,6 +1592,8 @@ export default function App() {
                     {currentArtifacts.length > 0 && (
                       <TypewriterArtifactButton
                         onClick={() => {
+                          unlockAudio();
+                          playSound("artifact");
                           setArtifactPageIndex(0);
                           setShowArtifactOverlay(true);
                         }}
