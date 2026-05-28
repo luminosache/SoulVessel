@@ -36,6 +36,7 @@ import {
   markTutorialSeen,
   readProgress,
 } from "./progress";
+import OrientationHint from "./OrientationHint";
 
 type ActiveTab = string;
 type JinState = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
@@ -1001,6 +1002,8 @@ export default function App() {
 
   return (
     <>
+      <OrientationHint />
+
       {/* ================= 2.1 INTRO SCREEN ELEMENT AT THE VERY TOP OF BODY-LAND ================= */}
       {introStep !== "done" && (
         <div
