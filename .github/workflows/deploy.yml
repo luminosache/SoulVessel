@@ -19,14 +19,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
         run: |
-          rm -rf node_modules package-lock.json
-          npm cache clean --force
-          npm install --include=optional
+          rm -rf node_modules
+          npm ci --include=optional
+          npm install --no-save @tailwindcss/oxide-linux-x64-gnu@4.3.0
 
       - name: Build project
         run: npm run build
