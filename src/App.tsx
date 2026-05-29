@@ -65,6 +65,30 @@ const tutorialSteps = [
   "在此处做出选择，为幽魂制作魂瓶，你所写下的词语将直接被泰山府君阅读。",
   "看到『查看文物』时，可以点击接引下一位。",
 ];
+const CONCEPT_INTRO_SEEN_KEY = "hunping-concept-intro-seen";
+const DEAD_END_NOTE_LINES = [
+  "此路已尽。",
+  "接引下一位的入口，在其他结局的查看文物页面中。",
+  "你已经完成该结局。请返回最初，查看另一种可能。",
+];
+
+function readConceptIntroSeen(): boolean {
+  try {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(CONCEPT_INTRO_SEEN_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function markConceptIntroSeen() {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(CONCEPT_INTRO_SEEN_KEY, "true");
+  } catch {
+    // Concept intro should never block gameplay.
+  }
+}
 
 function renderTextWithBold(text: string) {
   return text.split(/(\*\*.*?\*\*)/g).map((segment, index) => {
@@ -309,6 +333,9 @@ export default function App() {
   const [darkOcclusion, setDarkOcclusion] = useState(0);
   const [progress, setProgress] = useState(() => readProgress());
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
+  const [hasSeenConceptIntro, setHasSeenConceptIntro] = useState(readConceptIntroSeen);
+  const [hasPlayedChoiceHintCue, setHasPlayedChoiceHintCue] = useState(false);
+  const [playChoiceHintCueNow, setPlayChoiceHintCueNow] = useState(false);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (introStep !== "show") return;
@@ -861,10 +888,30 @@ export default function App() {
   const canShowStandardEndingActions =
     Boolean(currentEnding) && endingActionsVisible && !isDissipating;
   const canShowUnlockedFeatures = progress.hasSeenJinEnding;
+  const isJinChoiceStage = isJinNpc && (jinState === 1 || jinState === 3 || jinState === 5);
+  const hasStandardChoices = !isJinNpc && selectedTabs.length < requiredSelectionCount;
+  const shouldShowChoiceHint =
+    introStep === "done" &&
+    !showAboutAuthorPlaceholder &&
+    !showArtifactOverlay &&
+    !showJinArtifactOverlay &&
+    (isJinChoiceStage || hasStandardChoices);
+  const choiceHintText = isJinNpc
+    ? "请选择一项判词，推进此案"
+    : "请选择三个词语，查看由你改变后的亡魂生活";
+  const shouldShowConceptIntro =
+    introStep === "done" &&
+    !hasSeenConceptIntro &&
+    !showAboutAuthorPlaceholder &&
+    !showArtifactOverlay &&
+    !showJinArtifactOverlay;
+  const shouldShowStandardDeadEndNote = canShowStandardEndingActions && currentArtifacts.length === 0;
+  const shouldShowJinDeadEndNote = isJinNpc && jinState === 7 && jinArtifacts.length === 0;
   const shouldShowTutorialOverlay =
     introStep === "done" &&
     currentNpc.id === "npc1-jing" &&
     !progress.hasSeenTutorial &&
+    !shouldShowConceptIntro &&
     !showArtifactOverlay &&
     !showAboutAuthorPlaceholder;
 
@@ -913,6 +960,11 @@ export default function App() {
     setProgress(markTutorialSeen());
   };
 
+  const handleCloseConceptIntro = () => {
+    markConceptIntroSeen();
+    setHasSeenConceptIntro(true);
+  };
+
   const handleTutorialNext = () => {
     if (tutorialStepIndex >= tutorialSteps.length - 1) {
       completeTutorial();
@@ -957,11 +1009,20 @@ export default function App() {
     }
   }, [isJinNpc, jinState, jinChoice1, jinTaintedChoiceId]);
 
+  useEffect(() => {
+    if (!shouldShowChoiceHint || hasPlayedChoiceHintCue) return;
+    setPlayChoiceHintCueNow(true);
+    setHasPlayedChoiceHintCue(true);
+    const timeoutId = window.setTimeout(() => {
+      setPlayChoiceHintCueNow(false);
+    }, 1200);
+    return () => window.clearTimeout(timeoutId);
+  }, [shouldShowChoiceHint, hasPlayedChoiceHintCue]);
+
   const handleGuideNextNpc = () => {
     if (!canGuideNext) return;
 
     unlockAudio();
-    playSound("enter");
     setShowArtifactOverlay(false);
     setSelectedTabs([]);
     setActiveDisplayTab("");
@@ -1497,11 +1558,16 @@ export default function App() {
                 )}
                 {jinState === 7 && (
                   <>
+                    {shouldShowJinDeadEndNote && (
+                      <p className="jin-dead-end-note">
+                        {DEAD_END_NOTE_LINES.join("\n")}
+                      </p>
+                    )}
                     <button
                       onClick={handleJinBackToNarrative}
                       className="font-serif text-sm tracking-[0.35em] text-[#dfcdad] hover:text-[#ffd179] transition-all duration-300 cursor-pointer"
                     >
-                      重选
+                      回溯到最初
                     </button>
                     {canShowJinArtifact && (
                       <TypewriterArtifactButton onClick={handleJinOpenArtifactOverlay} />
@@ -1568,6 +1634,11 @@ export default function App() {
               <div className="absolute bottom-10 left-36 z-30 flex items-center space-x-6">
                 {canShowStandardEndingActions && (
                   <>
+                    {shouldShowStandardDeadEndNote && (
+                      <p className="ending-dead-end-note">
+                        {DEAD_END_NOTE_LINES.join("\n")}
+                      </p>
+                    )}
                     <button
                       onClick={() => {
                         if (isDissipating) return;
@@ -1588,9 +1659,9 @@ export default function App() {
                         }, 1500);
                       }}
                       className="font-serif text-sm tracking-[0.4em] text-[#819595]/50 hover:text-[#dfcdad] transition-all duration-300 py-1.5 bg-transparent border-none rounded-none cursor-pointer relative z-40 animate-fadeIn"
-                      title="重设所有选项"
+                      title="回溯到最初"
                     >
-                      重选
+                      回溯到最初
                     </button>
 
                     {currentArtifacts.length > 0 && (
@@ -1908,6 +1979,11 @@ export default function App() {
           id="global-tabs-dock" className={`w-full py-6 bg-transparent px-6 flex justify-center items-center z-30 transition-opacity duration-700 ${isJinNpc && isJinIntroPlaying ? "opacity-0" : "opacity-100"} ${isChengtaoNpc ? "chengtao-tabs-dock" : ""}`}
         >
           <div className="w-full max-w-6xl flex flex-col items-center justify-center space-y-4">
+            {shouldShowChoiceHint && (
+              <p className={`choice-hint-note ${playChoiceHintCueNow ? "choice-hint-once" : ""}`}>
+                {choiceHintText}
+              </p>
+            )}
             {isJinNpc ? (
               <div className="w-full max-w-4xl text-center">
                 {jinState === 1 && (
@@ -1999,6 +2075,37 @@ export default function App() {
                 className="font-serif text-xs tracking-[0.28em] text-[#dfcdad] hover:text-[#ffd179] transition-colors cursor-pointer"
               >
                 {tutorialStepIndex >= tutorialSteps.length - 1 ? "完成" : "下一步"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {shouldShowConceptIntro && (
+        <div className="concept-intro-overlay" role="dialog" aria-modal="true" aria-labelledby="concept-intro-title">
+          <div className="concept-intro-panel">
+            <div className="concept-intro-header">
+              <h2 id="concept-intro-title" className="concept-intro-title">
+                如何游玩《魂瓶》
+              </h2>
+              <div className="concept-intro-rule" />
+            </div>
+            <p className="concept-intro-copy">
+              这是一部互动叙事作品。你将阅读亡魂自述、查看遗物，并通过选择判词的方式，影响到亡魂的阴间生活状态。
+            </p>
+            <p className="concept-intro-copy">
+              页面下方的文字是可点击选项，有时可能需要向下滑动页面可见。选满三个选项即可以查看结局。
+            </p>
+            <p className="concept-intro-copy">
+              有些路线会走到尽头。看到「回溯到最初」时，说明你已经抵达这条路径的结局，可以返回最初探索另一种可能。
+            </p>
+            <p className="concept-intro-copy">建议使用横屏或宽屏游玩。</p>
+            <div className="concept-intro-actions">
+              <button
+                onClick={handleCloseConceptIntro}
+                className="concept-intro-confirm"
+              >
+                开始接引
               </button>
             </div>
           </div>
