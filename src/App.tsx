@@ -71,6 +71,19 @@ const DEAD_END_NOTE_LINES = [
   "接引下一位的入口，在其他结局的查看文物页面中。",
   "你已经完成该结局。请返回最初，查看另一种可能。",
 ];
+const ABOUT_GAME_COPY = [
+  "你好，我是《魂瓶》的独立制作人lumi!\n非常感谢你有耐心游玩到这里！",
+  "**不知道你是跌跌撞撞才来到这里，还是一路顺遂呢？在探索不同选项和不同结局中，相信你也有对于判词、对于历史“定论”的一番新见解。**",
+  "也感谢你包容这个项目中的体验瑕疵，这个项目文本完全由我人工写作，但代码完全由ai编写，没能经过大规模的测试和优化，虽然已经尽力修改，但相信还会有不够成熟、不够让人满意的地方，欢迎通过下方邮箱联系作者反馈！",
+  "我在第一次接触魂瓶这种出土材料时，就发现身处信仰荒原中的东汉人，其生死观既有许多不同于刻板印象的实用主义倾向，同时又相信着生魂、泰山、四方神、墓下鬼，从魂瓶粗疏的文字中，可以勾勒出一个苍凉而现实的死后世界。而将它向更往后的墓志铭、更现代的盖棺定论发散，就产生了《魂瓶》这个项目最初的想法：**历史定论对于后人如何看历史人物，到底有多大的影响？又甚者，对这个历史人物的身后生活有多大的影响？** 如果说有一些希望传达给用户的，那么就是这种没有定论的思考了。",
+  "联系lumi：luminosache@qq.com",
+];
+const JIN_ARTIFACT_APPENDIX_COPY = [
+  "本案由真实事件改编。\n金诚泽（1885-1946），亦名金理泽，字润芝，安徽寿县人。其早年便立志出家修道，后投入全真道龙门派，在千山无量观打坛诵经，历经数十年修炼，誉满观内，1931年，任千山无量观监院。1937年，在 **沈阳太清宫** 受戒，旋任太清宫监院。后被推举为方丈。1943年，黑龙江双城无量观传戒，受邀为传戒律师。次年又在太清宫传戒。1946年，病逝于沈阳太清宫。",
+  "此次双城传戒, 在全真道传戒历史上, 也是承前启后的一次重要法会活动。 一方面, 其继承了沈阳太清宫的法统, 另一方面, 发展了诸多优秀的戒子, 成为新中国道教界的骨干力量, 承担了薪火相传、 继往开来的历史重任。 其中突出者如道字第一号王理仙道长。\n王理仙 (1913 - 1995 ) , 道号栖玄子, 吉林省怀德县人, 在怀德县杨大城子无量宫出家。1943 年, 参加双城无量观受戒, 因表现突出, 列为“ 道字第一号” 戒子。 在双城受戒之后, 王理仙云游各地, 曾先后在陕西省楼观台和西安市八仙宫挂单常住, 后在八仙宫担任监院。 王道长还曾当选中国道教协会第三届理事会常务理事, 陕西省道教协会名誉会长。  **1989 年 11 月 10 日  (农历十月十三日), 道教全真十方丛林北京白云观举办已中辍六十多年的传统授戒仪典。** 事前,  1988 年中国道协理事会便决议恭请王理仙升座为白云观第二十二代方丈。 这次戒期 20 天, 受戒弟子 75 人。 王理仙在法会中为受戒弟子说戒, 告诫受戒弟子要 “ 爱国爱教, 诸恶莫作, 众善奉行”。他成为全真道授戒盛典的中兴者, 是白云观法统继往开来的一代宗师。",
+  "——节选自汪桂平、高翔：《双城无量观〈癸未坛登真录〉研析》，《世界宗教研究》2023年第8期，第67—80页。",
+  "据本项目作者研究，1942年成都二仙庵传戒与1943年双城无量观传戒，是抗战时期唯二留下材料可考的道教三坛大戒活动，讽刺的是，比起二仙庵传戒位于大后方，有军阀的资金支持，无量观这次活动是在伪满洲国宣扬神道教兴行的背景下才得以顺利举办的，而其中有许多为时局所限制的环节，包括官员致辞、行满洲国民礼仪、向天照致礼，均来自于当时的报道。\n为了防止歧义，作者在具体的地名上做了模糊：金诚泽实际主持沈阳太清宫（今存），而非长春宫；而双城无量观传戒所在的无量观早已不存，连旧址都已变为高楼大厦，虽然双城堡车站还在，但知道无量观的人寥寥无几，所以没有回避。",
+];
 
 function readConceptIntroSeen(): boolean {
   try {
@@ -2125,16 +2138,26 @@ export default function App() {
               <p className="font-serif text-sm tracking-[0.18em] leading-loose text-[#9bb1b1]">
                 制作说明与致谢
               </p>
+              <div className="space-y-4">
+                {ABOUT_GAME_COPY.map((paragraph, index) => (
+                  <p
+                    key={`about-game-copy-${index}`}
+                    className="font-serif text-sm tracking-[0.12em] leading-loose text-[#9bb1b1] whitespace-pre-line text-justify"
+                  >
+                    {renderTextWithBold(paragraph)}
+                  </p>
+                ))}
+              </div>
               <div className="flex items-center gap-5 pt-4">
                 <button
                   onClick={() => setShowAboutAuthorPlaceholder(false)}
-                  className="font-serif text-xs tracking-[0.3em] text-[#9bb1b1] hover:text-[#dfcdad] transition-colors cursor-pointer"
+                  className="font-serif text-xs tracking-[0.3em] text-[#9bb1b1] hover:text-[#dfcdad] transition-colors cursor-pointer bg-[#211a12]/70"
                 >
                   返回游戏
                 </button>
                 <button
                   onClick={handleReturnToCover}
-                  className="font-serif text-xs tracking-[0.3em] text-[#9bb1b1] hover:text-[#dfcdad] transition-colors cursor-pointer"
+                  className="font-serif text-xs tracking-[0.3em] text-[#9bb1b1] hover:text-[#dfcdad] transition-colors cursor-pointer bg-[#211a12]/70"
                 >
                   回到封面
                 </button>
@@ -2149,7 +2172,7 @@ export default function App() {
           <div className="w-full max-w-5xl h-[90vh] md:h-[80vh] bg-[#060707]/60 backdrop-blur-lg border border-[#2d3838]/25 rounded flex flex-col md:flex-row relative overflow-hidden shadow-2xl">
             <button
               onClick={handleJinCloseArtifactOverlay}
-              className="absolute top-4 right-4 text-[#819595]/60 hover:text-[#dfcdad] transition-all duration-300 font-serif text-xs tracking-widest cursor-pointer z-50 py-1.5 px-3 border border-[#525e5e]/15 hover:border-[#dfcdad]/40 rounded bg-[#131616]/70"
+              className="absolute top-4 right-4 text-[#819595]/60 hover:text-[#dfcdad] transition-all duration-300 font-serif text-xs tracking-widest cursor-pointer z-50 py-1.5 px-3 border border-[#525e5e]/15 hover:border-[#dfcdad]/40 rounded bg-[#211a12]/70"
               title="关闭"
             >
               关闭
@@ -2199,6 +2222,17 @@ export default function App() {
                     )}
                   </div>
                 ))}
+                <div className="h-px w-full bg-[#dfcdad]/25" />
+                <div className="space-y-4">
+                  {JIN_ARTIFACT_APPENDIX_COPY.map((paragraph, index) => (
+                    <p
+                      key={`jin-artifact-appendix-${index}`}
+                      className="font-serif text-xs md:text-sm tracking-widest text-[#819a9a] text-justify leading-relaxed whitespace-pre-line"
+                    >
+                      {renderTextWithBold(paragraph)}
+                    </p>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -2214,7 +2248,7 @@ export default function App() {
             {/* Elegant Close Button in the upper right corner */}
             <button
               onClick={() => setShowArtifactOverlay(false)}
-              className="absolute top-4 right-4 text-[#819595]/60 hover:text-[#dfcdad] transition-all duration-300 font-serif text-xs tracking-widest cursor-pointer z-50 py-1.5 px-3 border border-[#525e5e]/15 hover:border-[#dfcdad]/40 rounded bg-[#131616]/70"
+              className="absolute top-4 right-4 text-[#819595]/60 hover:text-[#dfcdad] transition-all duration-300 font-serif text-xs tracking-widest cursor-pointer z-50 py-1.5 px-3 border border-[#525e5e]/15 hover:border-[#dfcdad]/40 rounded bg-[#211a12]/70"
               title="关闭"
             >
               关闭
