@@ -910,7 +910,11 @@ export default function App() {
     !showJinArtifactOverlay &&
     (isJinChoiceStage || hasStandardChoices);
   const choiceHintText = isJinNpc
-    ? "请选择一项判词，推进此案"
+    ? jinState === 3
+      ? "到底为什么办这场传戒？"
+      : jinState === 5
+        ? "金诚泽对道统做了什么？"
+        : "请选择一项判词，推进此案"
     : "请选择三个词语，查看由你改变后的亡魂生活";
   const shouldShowConceptIntro =
     introStep === "done" &&
@@ -2151,13 +2155,13 @@ export default function App() {
               <div className="flex items-center gap-5 pt-4">
                 <button
                   onClick={() => setShowAboutAuthorPlaceholder(false)}
-                  className="font-serif text-xs tracking-[0.3em] text-[#9bb1b1] hover:text-[#dfcdad] transition-colors cursor-pointer bg-[#211a12]/70"
+                  className="font-serif text-xs tracking-[0.3em] text-[#dfcdad] hover:text-[#ffe1a3] transition-colors cursor-pointer"
                 >
                   返回游戏
                 </button>
                 <button
                   onClick={handleReturnToCover}
-                  className="font-serif text-xs tracking-[0.3em] text-[#9bb1b1] hover:text-[#dfcdad] transition-colors cursor-pointer bg-[#211a12]/70"
+                  className="font-serif text-xs tracking-[0.3em] text-[#dfcdad] hover:text-[#ffe1a3] transition-colors cursor-pointer"
                 >
                   回到封面
                 </button>
@@ -2172,7 +2176,7 @@ export default function App() {
           <div className="w-full max-w-5xl h-[90vh] md:h-[80vh] bg-[#060707]/60 backdrop-blur-lg border border-[#2d3838]/25 rounded flex flex-col md:flex-row relative overflow-hidden shadow-2xl">
             <button
               onClick={handleJinCloseArtifactOverlay}
-              className="absolute top-4 right-4 text-[#819595]/60 hover:text-[#dfcdad] transition-all duration-300 font-serif text-xs tracking-widest cursor-pointer z-50 py-1.5 px-3 border border-[#525e5e]/15 hover:border-[#dfcdad]/40 rounded bg-[#211a12]/70"
+              className="absolute top-4 right-4 text-[#4f3d29] hover:text-[#2f2216] transition-all duration-300 font-serif text-xs tracking-widest cursor-pointer z-50 py-1.5 px-3 border border-[#525e5e]/15 hover:border-[#dfcdad]/40 rounded bg-[#dfcdad]"
               title="关闭"
             >
               关闭
@@ -2248,7 +2252,7 @@ export default function App() {
             {/* Elegant Close Button in the upper right corner */}
             <button
               onClick={() => setShowArtifactOverlay(false)}
-              className="absolute top-4 right-4 text-[#819595]/60 hover:text-[#dfcdad] transition-all duration-300 font-serif text-xs tracking-widest cursor-pointer z-50 py-1.5 px-3 border border-[#525e5e]/15 hover:border-[#dfcdad]/40 rounded bg-[#211a12]/70"
+              className="absolute top-4 right-4 text-[#4f3d29] hover:text-[#2f2216] transition-all duration-300 font-serif text-xs tracking-widest cursor-pointer z-50 py-1.5 px-3 border border-[#525e5e]/15 hover:border-[#dfcdad]/40 rounded bg-[#dfcdad]"
               title="关闭"
             >
               关闭
