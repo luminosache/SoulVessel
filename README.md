@@ -1,20 +1,9 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+![魂瓶封面](./public/readme-cover.png)
 
-# Run and deploy your AI Studio app
+**一句话简介：**
+《魂瓶》是一款以墓葬文书、亡魂审判与历史记忆为灵感的互动叙事Demo，玩家通过阅读供词、判词与遗物，并在关键节点做出选择，推进不同审判路径与结局。
 
-This contains everything you need to run your app locally.
+**体验入口**：[www.soulvessel.luminosache.space](https://soulvessel.luminosache.space/)
 
-View your app in AI Studio: https://ai.studio/apps/c2269175-2045-480c-8f7d-e46e9d91937b
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+本项目文本完全由作者手搓，代码全部由vibe coding落地。  
+联系作者：luminosache@qq.com
